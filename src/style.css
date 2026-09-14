@@ -10,8 +10,6 @@ header, footer { display: flex; align-items: center; justify-content: space-betw
 header { min-height: 32px; }
 .brand { display: inline-flex; align-items: center; gap: 13px; color: #b9bcb7; text-decoration: none; font-size: 18px; letter-spacing: -.7px; }
 .brand-mark { font-size: 27px; line-height: 1; color: var(--accent); font-weight: 600; letter-spacing: -4px; margin-right: 4px; }
-.deck-label { color: var(--muted); font-size: 13px; }
-.separator { color: #565955; padding: 0 10px; }
 main { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 80px 0; }
 .study { width: min(100%, 820px); text-align: center; }
 .prompt { margin: 0 0 28px; color: var(--muted); font-size: 14px; letter-spacing: .02em; }
@@ -41,7 +39,6 @@ kbd { font: inherit; font-size: 12px; border: 1px solid #454842; border-radius: 
 .rating-hint { font-size: 12px; color: var(--muted); margin: 17px 0 0; }
 .rating-hint > span { margin: 0 8px; color: #666b62; }
 footer { color: var(--muted); font-size: 12px; line-height: 1.5; }
-#reviewed { color: #c3c7bb; }
 .local-note { display: inline-flex; align-items: center; gap: 8px; }
 .rest { text-align: center; padding: 60px 0; }
 .rest-mark { font-size: 32px; color: var(--accent); }
@@ -49,7 +46,6 @@ footer { color: var(--muted); font-size: 12px; line-height: 1.5; }
 .rest p { color: var(--muted); font-size: 14px; line-height: 1.7; }
 .more-cards { margin-top: 22px; padding: 13px 20px; min-height: 48px; border: 1px solid #444740; border-radius: 6px; background: transparent; color: var(--accent); font: inherit; font-size: 14px; cursor: pointer; }
 .more-cards:hover { background: #222520; border-color: var(--accent); }
-.daily-counts { display: flex; gap: 22px; flex-wrap: wrap; }
 .dev-reset { border: 0; background: none; color: var(--muted); font: inherit; cursor: pointer; padding: 10px 0; margin: -10px 0; text-align: left; }
 .dev-reset:hover { color: #e6b78e; }
 .dev-reset span { margin-left: 4px; color: #90938f; font-size: 12px; border: 1px solid #454842; border-radius: 3px; padding: 1px 4px; }
@@ -60,8 +56,6 @@ footer { color: var(--muted); font-size: 12px; line-height: 1.5; }
 @media (max-width: 600px) {
   .shell { padding: 24px 22px; }
   .brand { font-size: 16px; gap: 9px; }
-  .deck-label { font-size: 12px; max-width: 150px; text-align: right; line-height: 1.7; }
-  .separator { padding: 0 3px; }
   main { padding: 55px 0; }
   .card { padding: 10px 2px; min-height: 170px; }
   .prompt { font-size: 13px; margin-bottom: 22px; }
@@ -69,7 +63,6 @@ footer { color: var(--muted); font-size: 12px; line-height: 1.5; }
   .rating { width: 150px; }
   .keyboard-hint, .rating kbd { display: none; }
   footer { font-size: 12px; align-items: flex-end; gap: 15px; }
-  .daily-counts { flex-direction: column; gap: 5px; }
   .local-note { max-width: 150px; text-align: right; }
   .local-note svg { flex-shrink: 0; }
 }

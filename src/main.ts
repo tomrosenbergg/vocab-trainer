@@ -10,7 +10,7 @@ import {
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
   <div class="shell">
-    <header><a class="brand" href="${import.meta.env.BASE_URL}" aria-label="Vocab home"><span class="brand-mark" aria-hidden="true">v.</span> vocab</a><span class="deck-label">SAT vocabulary <span class="separator">/</span> <span id="word-count"></span></span></header>
+    <header><a class="brand" href="${import.meta.env.BASE_URL}" aria-label="Vocab home"><span class="brand-mark" aria-hidden="true">v.</span> vocab</a></header>
     <main>
       <section class="study" aria-label="Vocabulary practice">
         <p class="prompt" id="prompt">recall the meaning</p>
@@ -31,7 +31,7 @@ app.innerHTML = `
       <p class="error" id="error" role="alert" hidden></p>
       <span class="sr-only" id="announcement" role="status" aria-live="polite"></span>
     </main>
-    <footer><span class="daily-counts"><span><span id="reviewed">0</span> reviewed today</span><span id="new-cards"></span>${import.meta.env.DEV ? '<button class="dev-reset" id="reset-history" type="button" title="Development only">Reset history <span>dev</span></button>' : ''}</span><span class="local-note"><svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14" fill="none"><rect x="3.5" y="7" width="9" height="7" rx="1.5" stroke="currentColor"/><path d="M5.5 7V4.5a2.5 2.5 0 0 1 5 0V7" stroke="currentColor"/></svg> saved in this browser</span></footer>
+    <footer><span class="dev-tools">${import.meta.env.DEV ? '<button class="dev-reset" id="reset-history" type="button" title="Development only">Reset history <span>dev</span></button>' : ''}</span><span class="local-note"><svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14" fill="none"><rect x="3.5" y="7" width="9" height="7" rx="1.5" stroke="currentColor"/><path d="M5.5 7V4.5a2.5 2.5 0 0 1 5 0V7" stroke="currentColor"/></svg> saved in this browser</span></footer>
   </div>`;
 
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -59,12 +59,7 @@ function render() {
   el('rating-hint').hidden = true;
   el('answer').hidden = true;
   el('reveal-hint').hidden = false;
-  el('reviewed').textContent = String(progress.day === localDay(now) ? progress.today : 0);
   const daily = dailyAllowance(progress, now);
-  el('new-cards').textContent = daily.introduced.length > daily.limit
-    ? `${daily.introduced.length} new cards today`
-    : `${daily.introduced.length} / ${daily.limit} new cards`;
-  el('word-count').textContent = `${deck.length / 2} words`;
   el('card').setAttribute('aria-disabled', 'false');
   current = nextCard(deck, progress, now);
   (document.querySelector('.study') as HTMLElement).hidden = !current;
