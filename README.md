@@ -73,7 +73,19 @@ In the development server only, the footer includes **Reset history**. Confirmin
 - `src/style.css`: responsive appearance
 - `src/study.test.ts`: import, recall, persistence, and scheduling checks
 
-The production build is static output in `dist/`. No publishing has been configured.
+The production build is static output in `dist/`.
+
+## GitHub Pages
+
+The workflow in `.github/workflows/deploy-pages.yml` runs tests, builds the site, and deploys pushes to `main`. You can also run **Deploy to GitHub Pages** manually from the repository’s Actions tab.
+
+One-time setup: open **Settings → Pages → Build and deployment → Source** and select **GitHub Actions**. If the initial workflow ran before Pages was enabled, rerun it from Actions.
+
+The site address is https://tomrosenbergg.github.io/vocab-trainer/.
+
+`npm run build:pages` sets the asset and home-link base to `/vocab-trainer/`. Ordinary `npm run dev` and `npm run build` retain the root path for local development or other hosting. If the repository is renamed, update the Pages build path and site URL here.
+
+The live site stores progress separately from localhost. The development reset button is excluded from the published build. No secrets or personal access tokens are needed in the workflow; deployment uses GitHub’s built-in token.
 
 ## Stored-data compatibility
 

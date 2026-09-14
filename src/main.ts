@@ -10,7 +10,7 @@ import {
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
   <div class="shell">
-    <header><a class="brand" href="/" aria-label="Vocab home"><span class="brand-mark" aria-hidden="true">v.</span> vocab</a><span class="deck-label">SAT vocabulary <span class="separator">/</span> <span id="word-count"></span></span></header>
+    <header><a class="brand" href="${import.meta.env.BASE_URL}" aria-label="Vocab home"><span class="brand-mark" aria-hidden="true">v.</span> vocab</a><span class="deck-label">SAT vocabulary <span class="separator">/</span> <span id="word-count"></span></span></header>
     <main>
       <section class="study" aria-label="Vocabulary practice">
         <p class="prompt" id="prompt">recall the meaning</p>
