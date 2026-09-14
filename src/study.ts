@@ -6,6 +6,7 @@ export type StudyCard = {
   word: string;
   front: string;
   back: string;
+  example: string;
   direction: 'meaning' | 'word';
 };
 type SavedCard = Omit<Card, 'due' | 'last_review'> & { due: string; last_review?: string };
@@ -79,11 +80,11 @@ export function createDeck(csv: string, seed: number): StudyCard[] {
   if (result.errors.length) throw new Error('The vocabulary file could not be read.');
   const seen = new Set<string>();
   const words = result.data.map((row, index) => {
-    if (row.length !== 2 || row.some((value) => !value.trim())) throw new Error(`Incomplete vocabulary on line ${index + 1}.`);
-    const [word, definition] = row.map((value) => value.trim());
+    if (row.length !== 3 || row.some((value) => !value.trim())) throw new Error(`Incomplete vocabulary on line ${index + 1}.`);
+    const [word, definition, example] = row.map((value) => value.trim());
     if (seen.has(word.toLowerCase())) throw new Error(`Duplicate word: ${word}.`);
     seen.add(word.toLowerCase());
-    return { word, definition };
+    return { word, definition, example };
   });
   if (!words.length) throw new Error('The vocabulary file is empty.');
   const ordered = shuffle(words, seed);
@@ -92,10 +93,10 @@ export function createDeck(csv: string, seed: number): StudyCard[] {
   for (let start = 0; start < ordered.length; start += 5) {
     const group = ordered.slice(start, start + 5);
     for (const direction of ['meaning', 'word'] as const) {
-      for (const { word, definition } of group) {
+      for (const { word, definition, example } of group) {
         cards.push({ id: `${encodeURIComponent(word.toLowerCase())}:${direction}`, word,
           front: direction === 'meaning' ? word : definition,
-          back: direction === 'meaning' ? definition : word, direction });
+          back: direction === 'meaning' ? definition : word, example, direction });
       }
     }
   }

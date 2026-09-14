@@ -1,5 +1,5 @@
 import './style.css';
-import csv from '../words-definitions.csv?raw';
+import csv from '../cards.csv?raw';
 import {
   addExtraCards, createDeck, dailyAllowance, isBuried, nextReviewAt,
   intervalLabel, localDay, nextCard, rateCard, readProgress,
@@ -16,7 +16,7 @@ app.innerHTML = `
         <p class="prompt" id="prompt">recall the meaning</p>
         <button class="card" id="card" type="button" aria-describedby="reveal-hint">
           <span class="front" id="front"></span>
-          <span class="answer" id="answer" hidden><span class="answer-rule"></span><span id="back"></span></span>
+          <span class="answer" id="answer" hidden><span class="answer-rule"></span><span id="back"></span><span class="example" id="example"></span></span>
         </button>
         <div class="controls">
           <p class="reveal-hint" id="reveal-hint">click to reveal <span class="keyboard-hint">or press <kbd>space</kbd></span></p>
@@ -87,6 +87,7 @@ function render() {
   el('front').textContent = current.front;
   el('front').classList.toggle('definition', current.direction === 'word');
   el('back').textContent = current.back;
+  el('example').textContent = current.example;
   el('back').classList.toggle('word-answer', current.direction === 'word');
   el('card').setAttribute('aria-label', `${current.front}. Reveal answer`);
   el('announcement').textContent = `${current.direction === 'meaning' ? 'Recall the meaning' : 'Recall the word'}: ${current.front}`;
@@ -100,11 +101,11 @@ function reveal() {
   el('ratings').hidden = false;
   el('rating-hint').hidden = false;
   el('card').setAttribute('aria-disabled', 'true');
-  el('card').setAttribute('aria-label', `${current.front}. ${current.back}`);
+  el('card').setAttribute('aria-label', `${current.front}. ${current.back}. Example: ${current.example}`);
   const now = new Date();
   el('hard-interval').textContent = intervalLabel(progress, current, 'hard', now);
   el('easy-interval').textContent = intervalLabel(progress, current, 'easy', now);
-  el('announcement').textContent = `${current.back}. Rate Hard with 1 or Easy with 2.`;
+  el('announcement').textContent = `${current.back}. Example: ${current.example} Rate Hard with 1 or Easy with 2.`;
 }
 
 function rate(answer: 'hard' | 'easy') {

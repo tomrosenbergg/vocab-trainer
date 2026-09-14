@@ -24,7 +24,7 @@ npm run preview
 New words follow a deterministic shuffle based on a seed saved in the browser. Resetting history creates a new seed.
 
 
-`words-definitions.csv` is the source of truth: two columns, no header, standard CSV quoting. The supplied 991 rows produce 1,982 cards. Definitions are imported as supplied; editorial accuracy and SAT relevance have not been independently reviewed.
+`cards.csv` is the source of truth: three columns, no header, word, definition, and example sentence, using standard CSV quoting. The supplied 991 rows produce 1,982 cards. Definitions and examples are imported as supplied; editorial accuracy and SAT relevance have not been independently reviewed.
 
 Each word has a word → definition card and a definition → word card, with independent FSRS scheduling. The default allowance is **10 new cards per local calendar day**, not five word pairs. Each first-reviewed direction uses one place, even if the other direction was introduced on an earlier day. Due reviews remain uncapped and take priority over new cards.
 
@@ -34,13 +34,13 @@ Once current work is complete, “Learn 5 more cards” unlocks another five pla
 
 This is self-assessed recall; equivalent definitions or synonyms can count as correct.
 
-To edit the deck, keep two columns with no header and quote definitions containing commas:
+To edit the deck, keep three columns with no header and quote any field containing commas or quotation marks:
 
 ```csv
-mitigate,"to make less severe, serious, or painful"
+mitigate,"to make less severe, serious, or painful",The barriers mitigate flood damage.
 ```
 
-Definition edits retain scheduling history. New or renamed words get new card IDs; removing a word removes its cards from the queue but leaves its saved history unused. The development server picks up CSV edits; a production copy must be rebuilt. Example sentences, audio, account sync, and tutor referrals are not implemented yet.
+Definition edits retain scheduling history. New or renamed words get new card IDs; removing a word removes its cards from the queue but leaves its saved history unused. The development server picks up CSV edits; a production copy must be rebuilt. Example sentences appear beneath the answer only after reveal in both directions. Editing a sentence also preserves scheduling history. Audio, account sync, and tutor referrals are not implemented yet.
 
 ## Scheduling and storage
 

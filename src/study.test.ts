@@ -5,8 +5,8 @@ import { addExtraCards, createDeck, dailyAllowance, isBuried, newCardsAvailableT
 
 const now = new Date(2026, 8, 14, 12);
 const tomorrow = new Date(2026, 8, 15, 0, 1);
-const csv = readFileSync(new URL('../words-definitions.csv', import.meta.url), 'utf8');
-const pair = createDeck('mitigate,make less severe', 1);
+const csv = readFileSync(new URL('../cards.csv', import.meta.url), 'utf8');
+const pair = createDeck('mitigate,make less severe,These measures mitigate the risk.', 1);
 function finishAvailable(progress = newProgress(now), deck = createDeck(csv, progress.seed), time = now) {
   for (let i = 0; i < 200; i++) {
     const card = nextCard(deck, progress, time);
@@ -22,7 +22,9 @@ test('CSV creates stable independent directions, including quoted commas', () =>
   assert.equal(new Set(deck.map((card) => card.id)).size, 1982);
   const forward = deck.find((card) => card.word === 'abase' && card.direction === 'meaning')!;
   const reverse = deck.find((card) => card.word === 'abase' && card.direction === 'word')!;
-  assert.equal(forward.back, 'to humiliate, degrade');
+  assert.equal(forward.back, 'to humiliate or degrade someone');
+  assert.equal(forward.example, reverse.example);
+  assert.ok(deck.every((card) => card.example.length > 0));
   assert.equal(reverse.front, forward.back);
   assert.equal(reverse.back, forward.front);
   assert.deepEqual(createDeck(csv, 42), deck);
@@ -140,12 +142,35 @@ test('word-based and unlimited progress migrate without changing card schedules'
 });
 
 test('malformed data is rejected instead of silently resetting progress', () => {
-  assert.throws(() => createDeck('word,definition\nword,other', 1), /Duplicate/);
-  assert.throws(() => createDeck('word,', 1), /Incomplete/);
+  assert.throws(() => createDeck('word,definition,Example.\nword,other,Another example.', 1), /Duplicate/);
+  assert.throws(() => createDeck('word,,Example.', 1), /Incomplete/);
   assert.throws(() => parseProgress('{broken'));
   assert.throws(() => parseProgress('{"version":2}'));
   const progress = rateCard(newProgress(now), pair[0], 'easy', now);
   assert.throws(() => parseProgress(JSON.stringify({ ...progress, daily: { ...progress.daily, extra: -1 } })));
   progress.cards[pair[0].id].due = 'bad date';
   assert.throws(() => parseProgress(JSON.stringify(progress)));
+});
+
+
+test('three-column CSV preserves quoted punctuation and example content in both directions', () => {
+  const deck = createDeck('mitigate,"to reduce, lessen","The plan, described as ""practical,"" should mitigate the risk."', 1);
+  assert.equal(deck[0].example, 'The plan, described as "practical," should mitigate the risk.');
+  assert.equal(deck[0].example, deck[1].example);
+  assert.equal(deck[0].back, deck[1].front);
+  assert.throws(() => createDeck('word,definition', 1), /Incomplete/);
+  assert.throws(() => createDeck('word,definition,', 1), /Incomplete/);
+  assert.throws(() => createDeck('word,definition,Example.,extra', 1), /Incomplete/);
+});
+
+test('definition and sentence edits keep stable IDs and existing review history', () => {
+  const original = createDeck('mitigate,make less severe,These measures mitigate the risk.', 1);
+  const progress = rateCard(newProgress(now), original[0], 'easy', now);
+  const updated = createDeck('mitigate,reduce severity,The barriers mitigate flood damage.', 1);
+  assert.deepEqual(updated.map((card) => card.id), original.map((card) => card.id));
+  assert.equal(updated[0].back, 'reduce severity');
+  assert.equal(updated[0].example, 'The barriers mitigate flood damage.');
+  assert.equal(progress.cards[updated[0].id].reps, 1);
+  assert.equal(isBuried(updated[1], progress, now), true);
+  assert.equal(nextCard(updated, progress, now), null);
 });
