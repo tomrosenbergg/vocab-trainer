@@ -102,3 +102,5 @@ Existing progress upgrades in place without modifying card schedules. The previo
 The footer shows “click anywhere to reveal” until three distinct cards have been studied. The cue is hidden after reveal and persists across reloads through existing progress. Header and footer controls keep their normal behavior; background clicks never grade or advance cards.
 
 Settings includes **New cards per day**, defaulting to 10. Entering a higher limit makes additional cards available immediately; lowering it never removes completed study or due reviews. Valid whole numbers autosave as you type, with no Save button. The limit persists across days and backups. Zero pauses new cards. Changing this setting clears session undo so it cannot restore an old limit.
+
+The footer separates today’s queue into **new**, **reviews**, and **learning** cards. Learning includes cards in FSRS learning or relearning steps, including cards recently marked Forgot.

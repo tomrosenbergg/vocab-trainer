@@ -62,7 +62,7 @@ footer { color: var(--muted); font-size: 12px; line-height: 1.5; }
 
 .card { border-radius: 12px; }
 
-.reveal-cue { margin: 0; color: var(--muted); font-size: 12px; }
+.reveal-cue { margin: 8px 0 0; color: var(--muted); font-size: 14px; text-align: center; }
 main.can-reveal { cursor: pointer; }
 
 .settings-toggle { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; }

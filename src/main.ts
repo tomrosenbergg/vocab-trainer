@@ -2,7 +2,7 @@ import { exportBackup, importBackup, restoreAnswer, type Undo } from './backup.t
 import './style.css';
 import csv from '../cards.csv?raw';
 import {
-  createDeck, dailyAllowance, isBuried, remainingCards,
+  createDeck, dailyAllowance, isBuried, remainingCardCounts,
   nextCard, rateCard, readProgress, newProgress,
   STORAGE_KEY, DAILY_NEW_CARDS, setNewCardsPerDay,
   type Answer, type Progress, type StudyCard,
@@ -22,6 +22,7 @@ app.innerHTML = `
           <span class="front" id="front"></span>
           <span class="answer" id="answer" hidden><span class="answer-rule"></span><span id="back"></span><span class="example" id="example"></span></span>
         </button>
+        <p class="reveal-cue" id="reveal-cue" hidden>click anywhere to reveal</p>
         <div class="controls">
           <div class="ratings" id="ratings" hidden>
             ${ANSWERS.map((answer, index) => `<button class="rating" id="${answer}" type="button" aria-keyshortcuts="${index + 1}"><span>${answerLabels[answer]}</span></button>`).join('')}
@@ -34,7 +35,7 @@ app.innerHTML = `
       <p class="error" id="error" role="alert" hidden></p>
       <span class="sr-only" id="announcement" role="status" aria-live="polite"></span>
     </main>
-    <footer><span></span><div class="user-messages"><p class="reveal-cue" id="reveal-cue" hidden>click anywhere to reveal</p><p class="remaining" id="remaining" aria-live="polite" aria-atomic="true"></p><span class="local-note"><svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14" fill="none"><rect x="3.5" y="7" width="9" height="7" rx="1.5" stroke="currentColor"/><path d="M5.5 7V4.5a2.5 2.5 0 0 1 5 0V7" stroke="currentColor"/></svg> saved in this browser</span></div></footer>
+    <footer><span></span><div class="user-messages"><p class="remaining" id="remaining" aria-live="polite" aria-atomic="true"></p><span class="local-note"><svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14" fill="none"><rect x="3.5" y="7" width="9" height="7" rx="1.5" stroke="currentColor"/><path d="M5.5 7V4.5a2.5 2.5 0 0 1 5 0V7" stroke="currentColor"/></svg> saved in this browser</span></div></footer>
   </div>`;
 
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -63,10 +64,10 @@ function render() {
   el('ratings').hidden = true;
   el('answer').hidden = true;
   const daily = dailyAllowance(progress, now);
-  const remaining = remainingCards(deck, progress, now);
-  el('remaining').textContent = `${remaining} ${remaining === 1 ? 'card' : 'cards'} left today`;
-  el('remaining').hidden = remaining === 0;
-  el('remaining').setAttribute('aria-label', `${remaining} cards remaining today`);
+  const remaining = remainingCardCounts(deck, progress, now);
+  el('remaining').textContent = `${remaining.newCards} new · ${remaining.reviews} reviews · ${remaining.learning} learning`;
+  el('remaining').hidden = false;
+  el('remaining').setAttribute('aria-label', `${remaining.newCards} new cards, ${remaining.reviews} reviews, and ${remaining.learning} learning cards remaining today`);
   el('card').setAttribute('aria-disabled', 'false');
   current = nextCard(deck, progress, now);
   (document.querySelector('.study') as HTMLElement).hidden = !current;

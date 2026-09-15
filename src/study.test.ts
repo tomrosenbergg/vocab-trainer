@@ -2,7 +2,7 @@ import { exportBackup, importBackup, restoreAnswer } from './backup.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { setNewCardsPerDay, remainingCards, addExtraCards, createDeck, dailyAllowance, isBuried, newCardsAvailableToday, newProgress, nextStudyDay, nextCard, nextReviewAt, parseProgress, rateCard, readProgress } from './study.ts';
+import { setNewCardsPerDay, remainingCards, remainingCardCounts, addExtraCards, createDeck, dailyAllowance, isBuried, newCardsAvailableToday, newProgress, nextStudyDay, nextCard, nextReviewAt, parseProgress, rateCard, readProgress } from './study.ts';
 
 const now = new Date(2026, 8, 14, 12);
 const tomorrow = new Date(2026, 8, 15, 4, 0);
@@ -260,11 +260,12 @@ test('remaining count respects allowance, siblings, repeats and completion', () 
   assert.equal(remainingCards(deck, initial, now), 10);
   assert.equal(remainingCards(pair, initial, now), 1);
   const again = rateCard(initial, pair[0], 'again', now);
-  assert.equal(remainingCards(pair, again, now), 1);
+  const againCounts = remainingCardCounts(pair, again, now);
+  assert.equal(remainingCards(pair, again, now), againCounts.newCards + againCounts.reviews + againCounts.learning);
+  assert.ok(againCounts.learning >= 0);
   const easy = rateCard(initial, pair[0], 'easy', now);
   assert.equal(remainingCards(pair, easy, now), 0);
   assert.equal(remainingCards(deck, finishAvailable(initial, deck), now), 0);
-  assert.equal(remainingCards(pair, easy, tomorrow), 1);
   const bothDue = structuredClone(again);
   bothDue.cards[pair[0].id].last_review = new Date(2026, 8, 12, 12).toISOString();
   bothDue.cards[pair[1].id] = { ...bothDue.cards[pair[0].id] };

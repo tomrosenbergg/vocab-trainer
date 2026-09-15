@@ -179,14 +179,21 @@ export function readProgress(storage: Pick<Storage, 'getItem'>, now = new Date()
 // Count cards that can actually be studied today: only one direction per word,
 // and a due direction takes precedence over its unseen sibling.
 export function remainingCards(deck: StudyCard[], progress: Progress, now: Date): number {
+  const counts = remainingCardCounts(deck, progress, now);
+  return counts.newCards + counts.reviews;
+}
+
+export function remainingCardCounts(deck: StudyCard[], progress: Progress, now: Date): { newCards: number; reviews: number; learning: number } {
   const eligible = deck.filter((card) => !isBuried(card, progress, now));
   const end = nextStudyDay(now).getTime();
-  const reviews = new Set(eligible.filter((card) => progress.cards[card.id] &&
+  const reviews = new Set(eligible.filter((card) => progress.cards[card.id] && progress.cards[card.id].state === 2 &&
+    Date.parse(progress.cards[card.id].due) < end).map(wordKey));
+  const learning = new Set(eligible.filter((card) => progress.cards[card.id] && progress.cards[card.id].state !== 2 &&
     Date.parse(progress.cards[card.id].due) < end).map(wordKey));
   const unseen = new Set(eligible.filter((card) => !progress.cards[card.id] &&
     !reviews.has(wordKey(card))).map(wordKey));
   const daily = dailyAllowance(progress, now);
-  return reviews.size + Math.min(unseen.size, Math.max(0, daily.limit - daily.introduced.length));
+  return { newCards: Math.min(unseen.size, Math.max(0, daily.limit - daily.introduced.length)), reviews: reviews.size, learning: learning.size };
 }
 
 export function nextCard(deck: StudyCard[], progress: Progress, now: Date): StudyCard | null {
