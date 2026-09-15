@@ -23,10 +23,26 @@ export const STORAGE_KEY = 'vocab.progress.v1';
 export const DAILY_NEW_CARDS = 10;
 export const EXTRA_NEW_CARDS = 5;
 
-// Two-button recall: Hard includes forgotten answers (Again); Easy means recalled (Good).
-// Actual FSRS Hard assumes a correct answer, so using it for forgetting would over-schedule.
+export const ANSWERS = ['again', 'hard', 'good', 'easy'] as const;
+export type Answer = typeof ANSWERS[number];
+const grades = { again: Rating.Again, hard: Rating.Hard, good: Rating.Good, easy: Rating.Easy } as const;
+
 const scheduler = fsrs({ request_retention: 0.9, enable_fuzz: false });
-export const localDay = (now: Date) => `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+function studyDayStart(now: Date): Date {
+  const start = new Date(now);
+  start.setHours(4, 0, 0, 0);
+  if (now < start) start.setDate(start.getDate() - 1);
+  return start;
+}
+export const localDay = (now: Date) => {
+  const start = studyDayStart(now);
+  return `${start.getFullYear()}-${start.getMonth() + 1}-${start.getDate()}`;
+};
+export function nextStudyDay(now: Date): Date {
+  const next = studyDayStart(now);
+  next.setDate(next.getDate() + 1);
+  return next;
+}
 
 export function newProgress(now = new Date()): Progress {
   return { version: 1, seed: Math.floor(Math.random() * 0xffffffff), cards: {}, day: localDay(now), today: 0, lastWord: null,
@@ -51,9 +67,10 @@ export function newCardsAvailableToday(deck: StudyCard[], progress: Progress, no
 }
 
 export function nextReviewAt(deck: StudyCard[], progress: Progress, now: Date): Date | null {
-  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
-  const dates = deck.filter((card) => progress.cards[card.id]).map((card) =>
-    Math.max(Date.parse(progress.cards[card.id].due), isBuried(card, progress, now) ? tomorrow : 0));
+  const dates = deck.filter((card) => progress.cards[card.id]).map((card) => {
+    const available = studyDayStart(new Date(progress.cards[card.id].due)).getTime();
+    return Math.max(available, isBuried(card, progress, now) ? nextStudyDay(now).getTime() : now.getTime());
+  });
   return dates.length ? new Date(Math.min(...dates)) : null;
 }
 
@@ -152,22 +169,25 @@ export function readProgress(storage: Pick<Storage, 'getItem'>, now = new Date()
 
 export function nextCard(deck: StudyCard[], progress: Progress, now: Date): StudyCard | null {
   const eligible = deck.filter((card) => !isBuried(card, progress, now));
-  const due = eligible.filter((card) => progress.cards[card.id] && Date.parse(progress.cards[card.id].due) <= now.getTime())
+  const due = eligible.filter((card) => progress.cards[card.id] && Date.parse(progress.cards[card.id].due) < nextStudyDay(now).getTime())
     .sort((a, b) => Date.parse(progress.cards[a.id].due) - Date.parse(progress.cards[b.id].due));
-  if (due.length) return due.find((card) => card.word !== progress.lastWord) ?? due[0];
+  const ready = due.filter((card) => Date.parse(progress.cards[card.id].due) <= now.getTime());
+  if (ready.length) return ready[0];
+  const review = due.find((card) => progress.cards[card.id].state === 2);
+  if (review) return review;
   const daily = dailyAllowance(progress, now);
   const unseen = daily.introduced.length < daily.limit ? eligible.filter((card) => !progress.cards[card.id]) : [];
-  return unseen.find((card) => card.word !== progress.lastWord) ?? unseen[0] ?? null;
+  return unseen.find((card) => card.word !== progress.lastWord) ?? unseen[0] ?? due[0] ?? null;
 }
 
-export function rateCard(progress: Progress, card: StudyCard, answer: 'hard' | 'easy', now: Date): Progress {
+export function rateCard(progress: Progress, card: StudyCard, answer: Answer, now: Date): Progress {
   const daily = dailyAllowance(progress, now);
   const isNewCard = !progress.cards[card.id];
   if (isBuried(card, progress, now)) throw new Error('This card’s sibling has already been reviewed today.');
   if (isNewCard && daily.introduced.length >= daily.limit) throw new Error('Today’s new-card allowance is complete.');
   const previous = progress.cards[card.id];
   const result = scheduler.next(previous ? hydrate(previous) : createEmptyCard(now), now,
-    answer === 'hard' ? Rating.Again : Rating.Good).card;
+    grades[answer]).card;
   return {
     ...progress, day: localDay(now), today: (progress.day === localDay(now) ? progress.today : 0) + 1,
     lastWord: card.word,
@@ -176,7 +196,7 @@ export function rateCard(progress: Progress, card: StudyCard, answer: 'hard' | '
   };
 }
 
-export function intervalLabel(progress: Progress, card: StudyCard, answer: 'hard' | 'easy', now: Date): string {
+export function intervalLabel(progress: Progress, card: StudyCard, answer: Answer, now: Date): string {
   const next = rateCard(progress, card, answer, now).cards[card.id];
   const minutes = Math.max(1, Math.round((Date.parse(next.due) - now.getTime()) / 60000));
   if (minutes < 60) return `${minutes}m`;

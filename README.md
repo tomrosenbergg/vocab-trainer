@@ -1,6 +1,6 @@
 # Vocab
 
-A minimal, browser-only SAT vocabulary trainer. Click a card to reveal its answer, then choose **Hard** or **Easy**. There is no login, backend, analytics, or external font request.
+A minimal, browser-only SAT vocabulary trainer. Click a card to reveal its answer, then choose **Again**, **Hard**, **Good**, or **Easy**. There is no login, backend, analytics, or external font request.
 
 ## Run locally
 
@@ -26,11 +26,13 @@ New words follow a deterministic shuffle based on a seed saved in the browser. R
 
 `cards.csv` is the source of truth: three columns, no header, word, definition, and example sentence, using standard CSV quoting. The supplied 991 rows produce 1,982 cards. Definitions and examples are imported as supplied; editorial accuracy and SAT relevance have not been independently reviewed.
 
-Each word has a word → definition card and a definition → word card, with independent FSRS scheduling. The default allowance is **10 new cards per local calendar day**, not five word pairs. Each first-reviewed direction uses one place, even if the other direction was introduced on an earlier day. Due reviews remain uncapped and take priority over new cards.
+Each word has a word → definition card and a definition → word card, with independent FSRS scheduling. The default allowance is **10 new cards per study day (4 a.m. to 4 a.m.)**, not five word pairs. Each first-reviewed direction uses one place, even if the other direction was introduced on an earlier day. Due reviews remain uncapped and take priority over new cards.
 
-After reviewing a card, its sibling (the opposite direction of the same word) is buried until the next local midnight. This applies to new, learning, and due review siblings, survives reloads, and also applies to extra batches. The reviewed card can still repeat later today if FSRS schedules it. Burying is a queue filter based on the sibling’s last-review date: it never changes the buried card’s FSRS state or due date. When both directions are due, reviewing the first defers the other to another day.
+After reviewing a card, its sibling (the opposite direction of the same word) is buried until the next local 4 a.m.. This applies to new, learning, and due review siblings, survives reloads. The reviewed card can still repeat later today if FSRS schedules it. Burying is a queue filter based on the sibling’s last-review date: it never changes the buried card’s FSRS state or due date. When both directions are due, reviewing the first defers the other to another day.
 
-Once current work is complete, “Learn 5 more cards” unlocks another five places for that day, if eligible new cards remain. It never unburies siblings. Extra allowance expires at local midnight; missed days do not accumulate allowance. Learning reviews later today produce “All caught up for now” with the next eligible review time. Buried overdue reviews are shown as available no earlier than tomorrow.
+All reviews scheduled before the next 4 a.m. are available in today's session. Already-due cards come first, followed by today's future review cards, new cards, and future learning repeats in due-time order. Short learning steps can therefore be completed without waiting for the clock. Again and Hard may require more repetitions before the session finishes. FSRS receives the actual review time and retains its own due dates.
+
+Once today's work is complete, the app waits until 4 a.m. for the next allowance and reviews. The extra-card button has been removed; missed days do not accumulate allowance. The timezone comes from the device/browser, not IP geolocation. Calendar-based boundaries respect daylight saving time. An idle open tab refreshes within 15 seconds of rollover.
 
 This is self-assessed recall; equivalent definitions or synonyms can count as correct.
 
@@ -44,16 +46,24 @@ Definition edits retain scheduling history. New or renamed words get new card ID
 
 ## Scheduling and storage
 
-Uses `ts-fsrs` at 90% requested retention. The two UI choices are deliberately binary:
+Uses `ts-fsrs` at 90% requested retention. Each button maps directly to its matching FSRS grade, in Anki order:
 
-- **Hard** → FSRS **Again**: forgotten, uncertain, or needs more practice.
-- **Easy** → FSRS **Good**: successfully recalled.
+- **Again**: not recalled.
+- **Hard**: recalled with difficulty.
+- **Good**: recalled correctly.
+- **Easy**: recalled effortlessly.
 
-FSRS's actual Hard rating means successful but difficult recall, and Easy means exceptional ease. Mapping binary buttons directly to those grades would offer no failure rating. Button interval hints show the upcoming review delay. Early learning steps may schedule both choices within the same session; successful later reviews spread out over days.
+The buttons share the same styling and show their next review intervals. Existing schedules from the earlier two-button interface are preserved; only future answers use the four-grade mapping.
 
-Card states, shuffle seed, daily new-card allowance, and today's review count are stored under `vocab.progress.v1` in localStorage. Dates are serialized and restored explicitly. Reloading preserves progress; clearing browser data removes it. Device sync, backups, offline page installation, and history export are outside this scaffold. An already loaded page requires no network to study, but reopening the app still requires the local server or a future static host.
+Card states, shuffle seed, daily new-card allowance, and today's review count are stored under `vocab.progress.v1` in localStorage. Dates are serialized and restored explicitly. Reloading preserves progress; clearing browser data removes it. Automatic device sync and offline page installation are outside this scaffold. An already loaded page requires no network to study, but reopening the app still requires the local server or a future static host.
 
 Invalid saved data is left untouched and reported. Storage failures disable grading rather than pretending reviews have been saved. Tabs listen for storage changes and refresh their displayed card; saving also checks for a stale review. Simultaneous writes from different tabs are not transactional, so use one active study tab.
+
+## Undo and backups
+
+After grading, **Undo** in the header (or **Cmd/Ctrl+Z**) restores the previous card, schedule, daily allowance and sibling availability so you can correct the rating. It supports the most recent answer in this tab; reload, import or changes in another tab clear undo. A final saved-state check prevents undo from overwriting newer progress.
+
+**Settings → Export progress** downloads a JSON backup containing all saved schedules, daily allowance and shuffle seed. **Import progress** validates a backup before asking to replace this browser's history. It does not merge histories. Invalid files leave existing progress untouched. Export first if you want to keep the current history. Backups contain progress, not the vocabulary CSV; they also work between localhost and the published site or another device running the same deck.
 
 ## Development reset
 
@@ -62,8 +72,10 @@ In the development server only, the footer includes **Reset history**. Confirmin
 ## Keyboard
 
 - **Space**: reveal answer
-- **1**: Hard
-- **2**: Easy
+- **1**: Again
+- **2**: Hard
+- **3**: Good
+- **4**: Easy
 - **Tab / Enter**: native button navigation and activation
 
 ## Structure

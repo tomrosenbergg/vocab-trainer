@@ -1,10 +1,11 @@
+import { exportBackup, importBackup, restoreAnswer } from './backup.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { addExtraCards, createDeck, dailyAllowance, isBuried, newCardsAvailableToday, newProgress, nextCard, nextReviewAt, parseProgress, rateCard, readProgress } from './study.ts';
+import { addExtraCards, createDeck, dailyAllowance, isBuried, newCardsAvailableToday, newProgress, nextStudyDay, nextCard, nextReviewAt, parseProgress, rateCard, readProgress } from './study.ts';
 
 const now = new Date(2026, 8, 14, 12);
-const tomorrow = new Date(2026, 8, 15, 0, 1);
+const tomorrow = new Date(2026, 8, 15, 4, 0);
 const csv = readFileSync(new URL('../cards.csv', import.meta.url), 'utf8');
 const pair = createDeck('mitigate,make less severe,These measures mitigate the risk.', 1);
 function finishAvailable(progress = newProgress(now), deck = createDeck(csv, progress.seed), time = now) {
@@ -43,31 +44,31 @@ test('ten new cards introduce ten different words, then stop; reload preserves t
   assert.equal(nextCard(deck, loaded, now), null);
 });
 
-test('reviewing either direction buries only its sibling until local midnight', () => {
+test('reviewing either direction buries only its sibling until local 4am', () => {
   for (const index of [0, 1]) {
     const reviewed = pair[index];
     const sibling = pair[1 - index];
-    const progress = rateCard(newProgress(now), reviewed, 'hard', now);
+    const progress = rateCard(newProgress(now), reviewed, 'again', now);
     assert.equal(isBuried(sibling, progress, now), true);
     assert.equal(isBuried(reviewed, progress, now), false);
-    assert.equal(nextCard(pair, progress, now), null);
-    assert.throws(() => rateCard(progress, sibling, 'easy', now), /sibling/);
+    assert.equal(nextCard(pair, progress, now)?.id, reviewed.id);
+    assert.throws(() => rateCard(progress, sibling, 'good', now), /sibling/);
     const loaded = parseProgress(JSON.stringify(progress), now);
     assert.equal(isBuried(sibling, loaded, now), true);
     assert.equal(isBuried(sibling, loaded, tomorrow), false);
     assert.equal(progress.cards[sibling.id], undefined, 'burying must not create or schedule the reverse');
-    const introducedReverse = rateCard(loaded, sibling, 'easy', tomorrow);
+    const introducedReverse = rateCard(loaded, sibling, 'good', tomorrow);
     assert.deepEqual(introducedReverse.daily.introduced, [sibling.id]);
   }
 });
 
-test('same-card Hard repeats stay available and do not spend a second new-card slot', () => {
-  const hard = rateCard(newProgress(now), pair[0], 'hard', now);
-  const easy = rateCard(newProgress(now), pair[0], 'easy', now);
+test('same-card Again repeats stay available and do not spend a second new-card slot', () => {
+  const hard = rateCard(newProgress(now), pair[0], 'again', now);
+  const easy = rateCard(newProgress(now), pair[0], 'good', now);
   assert.ok(Date.parse(hard.cards[pair[0].id].due) < Date.parse(easy.cards[pair[0].id].due));
   const due = new Date(hard.cards[pair[0].id].due);
   assert.equal(nextCard(pair, hard, due)?.id, pair[0].id);
-  const repeated = rateCard(hard, pair[0], 'easy', due);
+  const repeated = rateCard(hard, pair[0], 'good', due);
   assert.equal(repeated.daily.introduced.length, 1);
   assert.equal(repeated.cards[pair[0].id].reps, 2);
 });
@@ -75,10 +76,10 @@ test('same-card Hard repeats stay available and do not spend a second new-card s
 test('due siblings are buried without changing their FSRS state or due date', () => {
   const priorDay = new Date(2026, 8, 12, 12);
   const nextDay = new Date(2026, 8, 13, 12);
-  let progress = rateCard(newProgress(priorDay), pair[0], 'easy', priorDay);
-  progress = rateCard(progress, pair[1], 'easy', nextDay);
+  let progress = rateCard(newProgress(priorDay), pair[0], 'good', priorDay);
+  progress = rateCard(progress, pair[1], 'good', nextDay);
   const siblingBefore = { ...progress.cards[pair[1].id] };
-  progress = rateCard(progress, pair[0], 'easy', now);
+  progress = rateCard(progress, pair[0], 'good', now);
   assert.equal(isBuried(pair[1], progress, now), true);
   assert.equal(nextCard(pair, progress, now), null);
   assert.deepEqual(progress.cards[pair[1].id], siblingBefore);
@@ -104,7 +105,7 @@ test('extra five-card batch persists and cannot bypass burying or unfinished wor
   assert.equal(newCardsAvailableToday(pair, tiny, tomorrow), 1);
 });
 
-test('midnight resets allowance and extra batches; missed days do not accumulate', () => {
+test('4am resets allowance and extra batches; missed days do not accumulate', () => {
   const before = new Date(2026, 8, 14, 23, 59);
   const deck = createDeck(csv, 2);
   const finished = finishAvailable(newProgress(before), deck, before);
@@ -112,7 +113,7 @@ test('midnight resets allowance and extra batches; missed days do not accumulate
   assert.equal(dailyAllowance(extended, before).limit, 15);
   assert.equal(dailyAllowance(extended, tomorrow).limit, 10);
   assert.equal(dailyAllowance(extended, tomorrow).introduced.length, 0);
-  const later = new Date(2026, 8, 20, 12);
+  const later = new Date(2026, 9, 20, 12);
   assert.equal(dailyAllowance(extended, later).limit, 10);
   const due = nextCard(deck, extended, later)!;
   assert.ok(extended.cards[due.id], 'overdue reviews still precede new cards');
@@ -123,13 +124,13 @@ test('card allowance includes a previously unseen reverse direction', () => {
   const deck = createDeck(csv, initial.seed);
   const finished = finishAvailable(initial, deck);
   const reverse = deck.find((card) => card.id.split(':')[0] === finished.daily.introduced[0].split(':')[0] && !finished.cards[card.id])!;
-  const nextDay = rateCard(finished, reverse, 'easy', tomorrow);
+  const nextDay = rateCard(finished, reverse, 'good', tomorrow);
   assert.equal(nextDay.daily.introduced.length, 1);
   assert.equal(nextDay.daily.introduced[0], reverse.id);
 });
 
 test('word-based and unlimited progress migrate without changing card schedules', () => {
-  const first = rateCard(newProgress(now), pair[0], 'easy', now);
+  const first = rateCard(newProgress(now), pair[0], 'good', now);
   const legacy = { ...first, daily: { day: first.daily.day, introduced: ['mitigate'], extra: 5 } };
   const loaded = parseProgress(JSON.stringify(legacy), now);
   assert.equal(loaded.daily.unit, 'cards');
@@ -146,7 +147,7 @@ test('malformed data is rejected instead of silently resetting progress', () => 
   assert.throws(() => createDeck('word,,Example.', 1), /Incomplete/);
   assert.throws(() => parseProgress('{broken'));
   assert.throws(() => parseProgress('{"version":2}'));
-  const progress = rateCard(newProgress(now), pair[0], 'easy', now);
+  const progress = rateCard(newProgress(now), pair[0], 'good', now);
   assert.throws(() => parseProgress(JSON.stringify({ ...progress, daily: { ...progress.daily, extra: -1 } })));
   progress.cards[pair[0].id].due = 'bad date';
   assert.throws(() => parseProgress(JSON.stringify(progress)));
@@ -165,12 +166,89 @@ test('three-column CSV preserves quoted punctuation and example content in both 
 
 test('definition and sentence edits keep stable IDs and existing review history', () => {
   const original = createDeck('mitigate,make less severe,These measures mitigate the risk.', 1);
-  const progress = rateCard(newProgress(now), original[0], 'easy', now);
+  const progress = rateCard(newProgress(now), original[0], 'good', now);
   const updated = createDeck('mitigate,reduce severity,The barriers mitigate flood damage.', 1);
   assert.deepEqual(updated.map((card) => card.id), original.map((card) => card.id));
   assert.equal(updated[0].back, 'reduce severity');
   assert.equal(updated[0].example, 'The barriers mitigate flood damage.');
   assert.equal(progress.cards[updated[0].id].reps, 1);
   assert.equal(isBuried(updated[1], progress, now), true);
-  assert.equal(nextCard(updated, progress, now), null);
+  assert.equal(nextCard(updated, progress, now)?.id, original[0].id);
+});
+
+
+test('four answer choices use distinct FSRS grades and preserve saved progress', () => {
+  const progress = newProgress(now);
+  const results = ['again', 'hard', 'good', 'easy'].map((answer) =>
+    rateCard(progress, pair[0], answer as import('./study.ts').Answer, now));
+  const due = results.map((result) => Date.parse(result.cards[pair[0].id].due));
+  assert.ok(due[0] < due[1] && due[1] < due[2] && due[2] < due[3]);
+  assert.equal(results[3].cards[pair[0].id].state, 2, 'Easy graduates a new card to review');
+  for (const result of results) assert.deepEqual(parseProgress(JSON.stringify(result)), result);
+});
+
+
+test('4am boundary controls allowance, sibling burying and future reviews', () => {
+  const before = new Date(2026, 8, 15, 3, 59);
+  const after = new Date(2026, 8, 15, 4);
+  const progress = rateCard(newProgress(now), pair[0], 'easy', now);
+  progress.cards[pair[0].id].due = new Date(2026, 8, 15, 15).toISOString();
+  assert.equal(dailyAllowance(progress, before).introduced.length, 1);
+  assert.equal(isBuried(pair[1], progress, before), true);
+  assert.equal(nextCard(pair, progress, before), null);
+  assert.equal(nextReviewAt(pair, progress, before)?.getTime(), after.getTime());
+  assert.equal(dailyAllowance(progress, after).introduced.length, 0);
+  assert.equal(isBuried(pair[1], progress, after), false);
+  assert.equal(nextCard(pair, progress, after)?.id, pair[0].id);
+});
+
+test('learning repeats can finish immediately, then the queue stays complete until 4am', () => {
+  let progress = rateCard(newProgress(now), pair[0], 'good', now);
+  assert.ok(Date.parse(progress.cards[pair[0].id].due) > now.getTime());
+  assert.equal(nextCard(pair, progress, now)?.id, pair[0].id);
+  progress = rateCard(progress, pair[0], 'good', now);
+  assert.equal(nextCard(pair, progress, now), null);
+  assert.equal(nextCard(pair, parseProgress(JSON.stringify(progress)), new Date(2026, 8, 15, 3, 59)), null);
+});
+
+
+test('4am rollover follows local daylight saving rather than adding 24 hours', () => {
+  const previousTimezone = process.env.TZ;
+  try {
+    process.env.TZ = 'America/New_York';
+    const spring = new Date(2026, 2, 7, 4);
+    const fall = new Date(2026, 9, 31, 4);
+    assert.equal(nextStudyDay(spring).getHours(), 4);
+    assert.equal((nextStudyDay(spring).getTime() - spring.getTime()) / 3600000, 23);
+    assert.equal((nextStudyDay(fall).getTime() - fall.getTime()) / 3600000, 25);
+  } finally {
+    if (previousTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = previousTimezone;
+  }
+});
+
+test('backup round trip preserves scheduling, shuffle and daily allowance', () => {
+  const before = rateCard(newProgress(now), pair[0], 'hard', now);
+  const restored = importBackup(exportBackup(before));
+  assert.deepEqual(restored, before);
+  assert.throws(() => importBackup('{}'), /backup/);
+  assert.throws(() => importBackup('{invalid'));
+  const broken = JSON.parse(exportBackup(before));
+  broken.progress.cards[pair[0].id].due = 'invalid';
+  assert.throws(() => importBackup(JSON.stringify(broken)), /Saved progress/);
+  assert.deepEqual(importBackup(exportBackup(newProgress(now))).cards, {});
+});
+
+test('undo restores new-card allowance, sibling availability and FSRS state', () => {
+  const before = newProgress(now);
+  const after = rateCard(before, pair[0], 'again', now);
+  const undo = { before, after: JSON.stringify(after), cardId: pair[0].id };
+  const restored = restoreAnswer(undo, parseProgress(JSON.stringify(after)));
+  assert.deepEqual(restored, before);
+  assert.equal(dailyAllowance(restored, now).introduced.length, 0);
+  assert.equal(isBuried(pair[1], restored, now), false);
+  const repeated = rateCard(after, pair[0], 'good', now);
+  assert.deepEqual(restoreAnswer({ before: after, after: JSON.stringify(repeated), cardId: pair[0].id }, repeated), after);
+  assert.throws(() => restoreAnswer(undo, repeated), /another tab/);
+  assert.throws(() => restoreAnswer(undo, newProgress(now)), /another tab/);
 });
