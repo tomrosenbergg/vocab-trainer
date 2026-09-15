@@ -2,7 +2,7 @@ import { exportBackup, importBackup, restoreAnswer } from './backup.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { addExtraCards, createDeck, dailyAllowance, isBuried, newCardsAvailableToday, newProgress, nextStudyDay, nextCard, nextReviewAt, parseProgress, rateCard, readProgress } from './study.ts';
+import { setNewCardsPerDay, remainingCards, addExtraCards, createDeck, dailyAllowance, isBuried, newCardsAvailableToday, newProgress, nextStudyDay, nextCard, nextReviewAt, parseProgress, rateCard, readProgress } from './study.ts';
 
 const now = new Date(2026, 8, 14, 12);
 const tomorrow = new Date(2026, 8, 15, 4, 0);
@@ -251,4 +251,66 @@ test('undo restores new-card allowance, sibling availability and FSRS state', ()
   assert.deepEqual(restoreAnswer({ before: after, after: JSON.stringify(repeated), cardId: pair[0].id }, repeated), after);
   assert.throws(() => restoreAnswer(undo, repeated), /another tab/);
   assert.throws(() => restoreAnswer(undo, newProgress(now)), /another tab/);
+});
+
+
+test('remaining count respects allowance, siblings, repeats and completion', () => {
+  const initial = newProgress(now);
+  const deck = createDeck(csv, initial.seed);
+  assert.equal(remainingCards(deck, initial, now), 10);
+  assert.equal(remainingCards(pair, initial, now), 1);
+  const again = rateCard(initial, pair[0], 'again', now);
+  assert.equal(remainingCards(pair, again, now), 1);
+  const easy = rateCard(initial, pair[0], 'easy', now);
+  assert.equal(remainingCards(pair, easy, now), 0);
+  assert.equal(remainingCards(deck, finishAvailable(initial, deck), now), 0);
+  assert.equal(remainingCards(pair, easy, tomorrow), 1);
+  const bothDue = structuredClone(again);
+  bothDue.cards[pair[0].id].last_review = new Date(2026, 8, 12, 12).toISOString();
+  bothDue.cards[pair[1].id] = { ...bothDue.cards[pair[0].id] };
+  assert.equal(remainingCards(pair, bothDue, now), 1, 'due siblings only count once');
+  delete bothDue.cards[pair[1].id];
+  assert.equal(remainingCards(pair, bothDue, now), 1, 'unseen sibling of a due card is not extra work');
+});
+
+
+test('successive undos restore the whole session and allow corrected answers', () => {
+  const start = newProgress(now);
+  const first = rateCard(start, pair[0], 'again', now);
+  const second = rateCard(first, pair[0], 'hard', now);
+  const third = rateCard(second, pair[0], 'good', now);
+  const stack = [
+    { before: start, after: JSON.stringify(first), cardId: pair[0].id },
+    { before: first, after: JSON.stringify(second), cardId: pair[0].id },
+    { before: second, after: JSON.stringify(third), cardId: pair[0].id },
+  ];
+  let restored = third;
+  restored = restoreAnswer(stack.pop()!, restored);
+  assert.deepEqual(restored, second);
+  const corrected = rateCard(restored, pair[0], 'easy', now);
+  stack.push({ before: restored, after: JSON.stringify(corrected), cardId: pair[0].id });
+  restored = corrected;
+  while (stack.length) restored = restoreAnswer(stack.pop()!, restored);
+  assert.deepEqual(restored, start);
+});
+
+
+test('daily limit changes apply now and persist without removing reviews', () => {
+  const initial = newProgress(now);
+  const deck = createDeck(csv, initial.seed);
+  const finished = finishAvailable(initial, deck);
+  const increased = setNewCardsPerDay(finished, 12);
+  assert.equal(remainingCards(deck, increased, now), 2);
+  const loaded = parseProgress(JSON.stringify(increased));
+  assert.equal(dailyAllowance(loaded, tomorrow).limit, 12);
+  const lowered = setNewCardsPerDay(finished, 5);
+  assert.equal(nextCard(deck, lowered, now), null);
+  assert.equal(lowered.daily.introduced.length, 10);
+  assert.equal(dailyAllowance(lowered, tomorrow).limit, 5);
+  assert.deepEqual(lowered.cards, finished.cards);
+  const review = rateCard(initial, pair[0], 'again', now);
+  assert.equal(nextCard(pair, setNewCardsPerDay(review, 0), now)?.id, pair[0].id);
+  assert.equal(dailyAllowance(parseProgress(JSON.stringify(initial)), now).limit, 10);
+  for (const invalid of [-1, 1.5, NaN]) assert.throws(() => setNewCardsPerDay(initial, invalid));
+  assert.throws(() => parseProgress(JSON.stringify({ ...initial, newCardsPerDay: -1 })));
 });

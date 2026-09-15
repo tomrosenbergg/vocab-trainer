@@ -12,6 +12,7 @@ export type StudyCard = {
 type SavedCard = Omit<Card, 'due' | 'last_review'> & { due: string; last_review?: string };
 export type Progress = {
   version: 1;
+  newCardsPerDay?: number;
   seed: number;
   cards: Record<string, SavedCard>;
   day: string;
@@ -52,7 +53,12 @@ export function newProgress(now = new Date()): Progress {
 const wordKey = (card: StudyCard) => encodeURIComponent(card.word.toLowerCase());
 export function dailyAllowance(progress: Progress, now: Date) {
   const daily = progress.daily.day === localDay(now) ? progress.daily : { unit: 'cards' as const, day: localDay(now), introduced: [], extra: 0 };
-  return { ...daily, limit: DAILY_NEW_CARDS + daily.extra };
+  return { ...daily, limit: (progress.newCardsPerDay ?? DAILY_NEW_CARDS) + daily.extra };
+}
+
+export function setNewCardsPerDay(progress: Progress, limit: number): Progress {
+  if (!Number.isSafeInteger(limit) || limit < 0) throw new Error('Enter a whole number of 0 or more.');
+  return { ...progress, newCardsPerDay: limit, daily: { ...progress.daily, extra: 0 } };
 }
 
 export function isBuried(card: StudyCard, progress: Progress, now: Date): boolean {
@@ -132,6 +138,9 @@ export function parseProgress(raw: string, now = new Date()): Progress {
       typeof data.cards !== 'object' || Array.isArray(data.cards)) {
     throw new Error('Saved progress could not be read. It has been left untouched.');
   }
+  if (data.newCardsPerDay !== undefined && (!Number.isSafeInteger(data.newCardsPerDay) || data.newCardsPerDay < 0)) {
+    throw new Error('Saved new-card limit could not be read.');
+  }
   for (const card of Object.values(data.cards)) {
     if (!card || typeof card.due !== 'string' || !Number.isFinite(Date.parse(card.due)) ||
         (card.last_review !== undefined && (typeof card.last_review !== 'string' || !Number.isFinite(Date.parse(card.last_review)))) ||
@@ -165,6 +174,19 @@ export function parseProgress(raw: string, now = new Date()): Progress {
 export function readProgress(storage: Pick<Storage, 'getItem'>, now = new Date()): Progress {
   const raw = storage.getItem(STORAGE_KEY);
   return raw ? parseProgress(raw, now) : newProgress(now);
+}
+
+// Count cards that can actually be studied today: only one direction per word,
+// and a due direction takes precedence over its unseen sibling.
+export function remainingCards(deck: StudyCard[], progress: Progress, now: Date): number {
+  const eligible = deck.filter((card) => !isBuried(card, progress, now));
+  const end = nextStudyDay(now).getTime();
+  const reviews = new Set(eligible.filter((card) => progress.cards[card.id] &&
+    Date.parse(progress.cards[card.id].due) < end).map(wordKey));
+  const unseen = new Set(eligible.filter((card) => !progress.cards[card.id] &&
+    !reviews.has(wordKey(card))).map(wordKey));
+  const daily = dailyAllowance(progress, now);
+  return reviews.size + Math.min(unseen.size, Math.max(0, daily.limit - daily.introduced.length));
 }
 
 export function nextCard(deck: StudyCard[], progress: Progress, now: Date): StudyCard | null {

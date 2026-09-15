@@ -1,6 +1,6 @@
 # Vocab
 
-A minimal, browser-only SAT vocabulary trainer. Click a card to reveal its answer, then choose **Again**, **Hard**, **Good**, or **Easy**. There is no login, backend, analytics, or external font request.
+A minimal, browser-only SAT vocabulary trainer. Click anywhere in the main study area to reveal the answer, then choose **Forgot** or **Got it**. There is no login, backend, analytics, or external font request.
 
 ## Run locally
 
@@ -30,9 +30,9 @@ Each word has a word → definition card and a definition → word card, with in
 
 After reviewing a card, its sibling (the opposite direction of the same word) is buried until the next local 4 a.m.. This applies to new, learning, and due review siblings, survives reloads. The reviewed card can still repeat later today if FSRS schedules it. Burying is a queue filter based on the sibling’s last-review date: it never changes the buried card’s FSRS state or due date. When both directions are due, reviewing the first defers the other to another day.
 
-All reviews scheduled before the next 4 a.m. are available in today's session. Already-due cards come first, followed by today's future review cards, new cards, and future learning repeats in due-time order. Short learning steps can therefore be completed without waiting for the clock. Again and Hard may require more repetitions before the session finishes. FSRS receives the actual review time and retains its own due dates.
+All reviews scheduled before the next 4 a.m. are available in today's session. Already-due cards come first, followed by today's future review cards, new cards, and future learning repeats in due-time order. Short learning steps can therefore be completed without waiting for the clock. Forgot may require more repetitions before the session finishes. FSRS receives the actual review time and retains its own due dates.
 
-Once today's work is complete, the app waits until 4 a.m. for the next allowance and reviews. The extra-card button has been removed; missed days do not accumulate allowance. The timezone comes from the device/browser, not IP geolocation. Calendar-based boundaries respect daylight saving time. An idle open tab refreshes within 15 seconds of rollover.
+Once today's work is complete, the app waits until 4 a.m. for the next allowance and reviews. The completion screen offers no extra-card option. Previously granted extra allowance expires at 4 a.m.; missed days do not accumulate allowance. The timezone comes from the device/browser, not IP geolocation. Calendar-based boundaries respect daylight saving time. An idle open tab refreshes within 15 seconds of rollover.
 
 This is self-assessed recall; equivalent definitions or synonyms can count as correct.
 
@@ -46,14 +46,12 @@ Definition edits retain scheduling history. New or renamed words get new card ID
 
 ## Scheduling and storage
 
-Uses `ts-fsrs` at 90% requested retention. Each button maps directly to its matching FSRS grade, in Anki order:
+Uses `ts-fsrs` at 90% requested retention. The two choices map to FSRS grades:
 
-- **Again**: not recalled.
-- **Hard**: recalled with difficulty.
-- **Good**: recalled correctly.
-- **Easy**: recalled effortlessly.
+- **Forgot** → Again: could not recall the answer before revealing it.
+- **Got it** → Good: recalled the answer before revealing it.
 
-The buttons share the same styling and show their next review intervals. Existing schedules from the earlier two-button interface are preserved; only future answers use the four-grade mapping.
+Both buttons share the same styling. Review intervals are hidden; FSRS schedules cards in the background. Existing schedules are preserved; future answers use this mapping.
 
 Card states, shuffle seed, daily new-card allowance, and today's review count are stored under `vocab.progress.v1` in localStorage. Dates are serialized and restored explicitly. Reloading preserves progress; clearing browser data removes it. Automatic device sync and offline page installation are outside this scaffold. An already loaded page requires no network to study, but reopening the app still requires the local server or a future static host.
 
@@ -61,21 +59,19 @@ Invalid saved data is left untouched and reported. Storage failures disable grad
 
 ## Undo and backups
 
-After grading, **Undo** in the header (or **Cmd/Ctrl+Z**) restores the previous card, schedule, daily allowance and sibling availability so you can correct the rating. It supports the most recent answer in this tab; reload, import or changes in another tab clear undo. A final saved-state check prevents undo from overwriting newer progress.
+After grading, **Cmd/Ctrl+Z** restores the previous card, schedule, daily allowance and sibling availability so you can correct the rating. You can undo repeatedly through this session’s answers. Reload, import or changes in another tab clear the undo stack. A final saved-state check prevents undo from overwriting newer progress.
 
-**Settings → Export progress** downloads a JSON backup containing all saved schedules, daily allowance and shuffle seed. **Import progress** validates a backup before asking to replace this browser's history. It does not merge histories. Invalid files leave existing progress untouched. Export first if you want to keep the current history. Backups contain progress, not the vocabulary CSV; they also work between localhost and the published site or another device running the same deck.
+**Settings (gear icon) → Export progress** downloads a JSON backup containing all saved schedules, daily allowance and shuffle seed. **Import progress** validates a backup before asking to replace this browser's history. It does not merge histories. Invalid files leave existing progress untouched. Export first if you want to keep the current history. Backups contain progress, not the vocabulary CSV; they also work between localhost and the published site or another device running the same deck.
 
-## Development reset
+## Reset progress
 
-In the development server only, the footer includes **Reset history**. Confirming clears this app’s localStorage entry and reloads to a fresh session; cancelling preserves progress. This resets schedules, daily allowance, and sibling burying, but does not change the deck or other browser data. The button and handler are gated by `import.meta.env.DEV` and omitted from production builds.
+Settings includes **Reset progress** with a confirmation. It clears this browser's study history and schedules, resets the daily count and shuffle, and preserves the new-cards-per-day preference. Export a backup first if you may want to restore progress. Cancelling changes nothing. The old development-only footer control has been removed.
 
 ## Keyboard
 
 - **Space**: reveal answer
-- **1**: Again
-- **2**: Hard
-- **3**: Good
-- **4**: Easy
+- **1**: Forgot
+- **2**: Got it
 - **Tab / Enter**: native button navigation and activation
 
 ## Structure
@@ -97,8 +93,12 @@ The site address is https://tomrosenbergg.github.io/vocab-trainer/.
 
 `npm run build:pages` sets the asset and home-link base to `/vocab-trainer/`. Ordinary `npm run dev` and `npm run build` retain the root path for local development or other hosting. If the repository is renamed, update the Pages build path and site URL here.
 
-The live site stores progress separately from localhost. The development reset button is excluded from the published build. No secrets or personal access tokens are needed in the workflow; deployment uses GitHub’s built-in token.
+The live site stores progress separately from localhost. Reset progress is available in Settings on the published site. No secrets or personal access tokens are needed in the workflow; deployment uses GitHub’s built-in token.
 
 ## Stored-data compatibility
 
 Existing progress upgrades in place without modifying card schedules. The previous word-based extra allowance converts at two cards per word. For its current-day introductions, already reviewed directions belonging to those introduced words count toward the card allowance; a previously unseen reverse does not count until actually studied. The original unlimited version conservatively counts cards last reviewed today, since it did not record introduction dates. Sibling burying also applies immediately to cards reviewed before this update.
+
+The footer shows “click anywhere to reveal” until three distinct cards have been studied. The cue is hidden after reveal and persists across reloads through existing progress. Header and footer controls keep their normal behavior; background clicks never grade or advance cards.
+
+Settings includes **New cards per day**, defaulting to 10. Entering a higher limit makes additional cards available immediately; lowering it never removes completed study or due reviews. Valid whole numbers autosave as you type, with no Save button. The limit persists across days and backups. Zero pauses new cards. Changing this setting clears session undo so it cannot restore an old limit.
