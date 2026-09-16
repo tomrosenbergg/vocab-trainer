@@ -1,6 +1,6 @@
 # Vocab
 
-A minimal, browser-only SAT vocabulary trainer. Click anywhere in the main study area to reveal the answer, then choose **Forgot** or **Got it**. There is no login, backend, analytics, or external font request.
+A minimal, browser-only SAT vocabulary trainer. Click anywhere in the main study area to reveal the answer, then choose **Fail** or **Pass**. There is no login, backend, analytics, or external font request.
 
 ## Run locally
 
@@ -30,7 +30,7 @@ Each word has a word → definition card and a definition → word card, with in
 
 After reviewing a card, its sibling (the opposite direction of the same word) is buried until the next local 4 a.m.. This applies to new, learning, and due review siblings, survives reloads. The reviewed card can still repeat later today if FSRS schedules it. Burying is a queue filter based on the sibling’s last-review date: it never changes the buried card’s FSRS state or due date. When both directions are due, reviewing the first defers the other to another day.
 
-All reviews scheduled before the next 4 a.m. are available in today's session. Already-due cards come first, followed by today's future review cards, new cards, and future learning repeats in due-time order. Short learning steps can therefore be completed without waiting for the clock. Forgot may require more repetitions before the session finishes. FSRS receives the actual review time and retains its own due dates.
+All reviews scheduled before the next 4 a.m. are available in today's session. Already-due cards come first, followed by today's future review cards, new cards, and future learning repeats in due-time order. Short learning steps can therefore be completed without waiting for the clock. Fail may require more repetitions before the session finishes. FSRS receives the actual review time and retains its own due dates.
 
 Once today's work is complete, the app waits until 4 a.m. for the next allowance and reviews. The completion screen offers no extra-card option. Previously granted extra allowance expires at 4 a.m.; missed days do not accumulate allowance. The timezone comes from the device/browser, not IP geolocation. Calendar-based boundaries respect daylight saving time. An idle open tab refreshes within 15 seconds of rollover.
 
@@ -48,12 +48,12 @@ Definition edits retain scheduling history. New or renamed words get new card ID
 
 Uses `ts-fsrs` at 90% requested retention. The two choices map to FSRS grades:
 
-- **Forgot** → Again: could not recall the answer before revealing it.
-- **Got it** → Good: recalled the answer before revealing it.
+- **Fail** → Again: could not recall the answer before revealing it.
+- **Pass** → Good: recalled the answer before revealing it.
 
 Both buttons share the same styling. Review intervals are hidden; FSRS schedules cards in the background. Existing schedules are preserved; future answers use this mapping.
 
-Card states, shuffle seed, daily new-card allowance, and today's review count are stored under `vocab.progress.v1` in localStorage. Dates are serialized and restored explicitly. Reloading preserves progress; clearing browser data removes it. Automatic device sync and offline page installation are outside this scaffold. An already loaded page requires no network to study, but reopening the app still requires the local server or a future static host.
+Card states, review history, shuffle seed, daily new-card allowance, and today's review count are stored under `vocab.progress.v1` in localStorage. Each rating appends a review event containing the card ID, timestamp, study day, answer, state transition, and resulting due date while the latest card state remains available for fast scheduling. Progress saved before review history existed migrates with an empty event log; past ratings cannot be reconstructed. Dates are serialized and restored explicitly. Reloading preserves progress; clearing browser data removes it. Automatic device sync and offline page installation are outside this scaffold. An already loaded page requires no network to study, but reopening the app still requires the local server or a future static host.
 
 Invalid saved data is left untouched and reported. Storage failures disable grading rather than pretending reviews have been saved. Tabs listen for storage changes and refresh their displayed card; saving also checks for a stale review. Simultaneous writes from different tabs are not transactional, so use one active study tab.
 
@@ -70,16 +70,19 @@ Settings includes **Reset progress** with a confirmation. It clears this browser
 ## Keyboard
 
 - **Space**: reveal answer
-- **1**: Forgot
-- **2**: Got it
+- **1**: Fail
+- **2**: Pass
 - **Tab / Enter**: native button navigation and activation
 
 ## Structure
 
 - `src/main.ts`: study interface and browser persistence
 - `src/study.ts`: CSV parsing, deck, validation, and scheduling
+- `src/stats.ts`: activity and word-level progress summaries
 - `src/style.css`: responsive appearance
 - `src/study.test.ts`: import, recall, persistence, and scheduling checks
+
+The Stats view shows a 12-week activity heat map, current streak, review totals, and a searchable Words list. Word rows aggregate both scheduled directions and show state, review count, pass rate, last review, and next review. Activity begins when review-event recording was introduced; earlier card state is preserved but cannot be reconstructed into historical events.
 
 The production build is static output in `dist/`.
 
@@ -103,4 +106,4 @@ The footer shows “click anywhere to reveal” until three distinct cards have 
 
 Settings includes **New cards per day**, defaulting to 10. Entering a higher limit makes additional cards available immediately; lowering it never removes completed study or due reviews. Valid whole numbers autosave as you type, with no Save button. The limit persists across days and backups. Zero pauses new cards. Changing this setting clears session undo so it cannot restore an old limit.
 
-The footer separates today’s queue into **new**, **reviews**, and **learning** cards. Learning includes cards in FSRS learning or relearning steps, including cards recently marked Forgot.
+The footer separates today’s queue into **new**, **reviews**, and **learning** cards. Learning includes cards in FSRS learning or relearning steps, including cards recently marked Fail.

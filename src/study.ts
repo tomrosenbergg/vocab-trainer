@@ -10,11 +10,22 @@ export type StudyCard = {
   direction: 'meaning' | 'word';
 };
 type SavedCard = Omit<Card, 'due' | 'last_review'> & { due: string; last_review?: string };
+export type ReviewEvent = {
+  id: string;
+  cardId: string;
+  reviewedAt: string;
+  studyDay: string;
+  answer: Answer;
+  stateBefore: number;
+  stateAfter: number;
+  due: string;
+};
 export type Progress = {
   version: 1;
   newCardsPerDay?: number;
   seed: number;
   cards: Record<string, SavedCard>;
+  reviews: ReviewEvent[];
   day: string;
   today: number;
   lastWord: string | null;
@@ -46,7 +57,7 @@ export function nextStudyDay(now: Date): Date {
 }
 
 export function newProgress(now = new Date()): Progress {
-  return { version: 1, seed: Math.floor(Math.random() * 0xffffffff), cards: {}, day: localDay(now), today: 0, lastWord: null,
+  return { version: 1, seed: Math.floor(Math.random() * 0xffffffff), cards: {}, reviews: [], day: localDay(now), today: 0, lastWord: null,
     daily: { unit: 'cards', day: localDay(now), introduced: [], extra: 0 } };
 }
 
@@ -141,6 +152,17 @@ export function parseProgress(raw: string, now = new Date()): Progress {
   if (data.newCardsPerDay !== undefined && (!Number.isSafeInteger(data.newCardsPerDay) || data.newCardsPerDay < 0)) {
     throw new Error('Saved new-card limit could not be read.');
   }
+  // Progress saved before review history existed starts with an empty event log.
+  data.reviews ??= [];
+  if (!Array.isArray(data.reviews) || data.reviews.some((review) => !review ||
+      typeof review.id !== 'string' || !review.id || typeof review.cardId !== 'string' || !review.cardId ||
+      typeof review.reviewedAt !== 'string' || !Number.isFinite(Date.parse(review.reviewedAt)) ||
+      typeof review.studyDay !== 'string' || !review.studyDay || !ANSWERS.includes(review.answer) ||
+      ![0, 1, 2, 3].includes(review.stateBefore) || ![0, 1, 2, 3].includes(review.stateAfter) ||
+      typeof review.due !== 'string' || !Number.isFinite(Date.parse(review.due))) ||
+      new Set(data.reviews.map((review) => review.id)).size !== data.reviews.length) {
+    throw new Error('Saved review history could not be read. It has been left untouched.');
+  }
   for (const card of Object.values(data.cards)) {
     if (!card || typeof card.due !== 'string' || !Number.isFinite(Date.parse(card.due)) ||
         (card.last_review !== undefined && (typeof card.last_review !== 'string' || !Number.isFinite(Date.parse(card.last_review)))) ||
@@ -180,7 +202,7 @@ export function readProgress(storage: Pick<Storage, 'getItem'>, now = new Date()
 // and a due direction takes precedence over its unseen sibling.
 export function remainingCards(deck: StudyCard[], progress: Progress, now: Date): number {
   const counts = remainingCardCounts(deck, progress, now);
-  return counts.newCards + counts.reviews;
+  return counts.newCards + counts.reviews + counts.learning;
 }
 
 export function remainingCardCounts(deck: StudyCard[], progress: Progress, now: Date): { newCards: number; reviews: number; learning: number } {
@@ -190,8 +212,9 @@ export function remainingCardCounts(deck: StudyCard[], progress: Progress, now: 
     Date.parse(progress.cards[card.id].due) < end).map(wordKey));
   const learning = new Set(eligible.filter((card) => progress.cards[card.id] && progress.cards[card.id].state !== 2 &&
     Date.parse(progress.cards[card.id].due) < end).map(wordKey));
+  const scheduledWords = new Set([...reviews, ...learning]);
   const unseen = new Set(eligible.filter((card) => !progress.cards[card.id] &&
-    !reviews.has(wordKey(card))).map(wordKey));
+    !scheduledWords.has(wordKey(card))).map(wordKey));
   const daily = dailyAllowance(progress, now);
   return { newCards: Math.min(unseen.size, Math.max(0, daily.limit - daily.introduced.length)), reviews: reviews.size, learning: learning.size };
 }
@@ -215,13 +238,26 @@ export function rateCard(progress: Progress, card: StudyCard, answer: Answer, no
   if (isBuried(card, progress, now)) throw new Error('This card’s sibling has already been reviewed today.');
   if (isNewCard && daily.introduced.length >= daily.limit) throw new Error('Today’s new-card allowance is complete.');
   const previous = progress.cards[card.id];
-  const result = scheduler.next(previous ? hydrate(previous) : createEmptyCard(now), now,
+  const startingCard = previous ? hydrate(previous) : createEmptyCard(now);
+  const result = scheduler.next(startingCard, now,
     grades[answer]).card;
+  const reviewedAt = now.toISOString();
+  const review: ReviewEvent = {
+    id: `${card.id}:${now.getTime()}:${result.reps}`,
+    cardId: card.id,
+    reviewedAt,
+    studyDay: localDay(now),
+    answer,
+    stateBefore: startingCard.state,
+    stateAfter: result.state,
+    due: result.due.toISOString(),
+  };
   return {
     ...progress, day: localDay(now), today: (progress.day === localDay(now) ? progress.today : 0) + 1,
     lastWord: card.word,
     daily: { unit: 'cards', day: daily.day, extra: daily.extra, introduced: isNewCard ? [...daily.introduced, card.id] : daily.introduced },
     cards: { ...progress.cards, [card.id]: { ...result, due: result.due.toISOString(), last_review: result.last_review?.toISOString() } },
+    reviews: [...progress.reviews, review],
   };
 }
 

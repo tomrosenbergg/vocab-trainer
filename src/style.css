@@ -71,7 +71,7 @@ main.can-reveal { cursor: pointer; }
 .view-nav { display: flex; gap: 8px; }
 .view-nav [aria-pressed="true"] { color: #e0e1de; }
 .app-view { width: min(100%, 820px); animation: view-in 160ms ease-out; }
-#settings h1 { font-size: 28px; font-weight: 400; margin: 20px 0 40px; }
+#settings h1, #stats h1 { font-size: 28px; font-weight: 400; margin: 20px 0 40px; }
 .settings-panel { border-top: 1px solid #343735; padding-top: 24px; }
 .settings-panel h2 { font-size: 16px; font-weight: 400; margin: 0 0 12px; }
 .settings-panel p { color: var(--muted); line-height: 1.6; }
@@ -88,3 +88,30 @@ main.can-reveal { cursor: pointer; }
 
 .about { margin-top: 36px; }
 .about p { max-width: 640px; }
+
+.activity-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 34px; }
+.activity-metrics > div { display: flex; flex-direction: column; gap: 7px; padding: 18px; border: 1px solid #343735; border-radius: 8px; }
+.activity-metrics strong { color: #e0e1de; font-size: 24px; font-weight: 400; }
+.activity-metrics span, .heatmap-wrap p { color: var(--muted); font-size: 12px; }
+.heatmap-wrap { overflow-x: auto; padding-bottom: 8px; }
+.heatmap { display: grid; grid-template-rows: repeat(7, 10px); grid-auto-flow: column; grid-auto-columns: 10px; gap: 4px; width: max-content; min-width: 100%; }
+.heatmap-day { width: 10px; height: 10px; border-radius: 2px; background: var(--accent); }
+.heatmap-wrap p { margin: 10px 0 0; }
+.words { margin-top: 54px; }
+.words-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 16px; }
+.words-heading h2 { margin: 0; font-size: 20px; font-weight: 400; }
+.words-heading input { width: min(250px, 48%); min-height: 42px; padding: 9px 12px; border: 1px solid #444740; border-radius: 6px; color: inherit; background: transparent; font: inherit; }
+.word-table { border-top: 1px solid #41443f; }
+.word-row { display: grid; grid-template-columns: minmax(180px, 2fr) repeat(5, minmax(76px, 1fr)); gap: 14px; align-items: center; min-height: 58px; padding: 10px 4px; border-bottom: 1px solid #2d302e; font-size: 13px; }
+.word-row > span { min-width: 0; overflow-wrap: anywhere; }
+.word-row > span:first-child { color: #e0e1de; font-size: 14px; }
+.word-row small { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+.word-header { min-height: 42px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.word-header > span:first-child { color: var(--muted); font-size: 11px; }
+.word-empty { color: var(--muted); font-size: 13px; }
+
+@media (max-width: 700px) {
+  .activity-metrics { grid-template-columns: repeat(2, 1fr); }
+  .word-table { overflow-x: auto; }
+  .word-row { width: 720px; }
+}

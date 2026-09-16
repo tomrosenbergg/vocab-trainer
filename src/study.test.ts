@@ -1,4 +1,5 @@
 import { exportBackup, importBackup, restoreAnswer } from './backup.ts';
+import { activitySummary, wordSummaries } from './stats.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -314,4 +315,62 @@ test('daily limit changes apply now and persist without removing reviews', () =>
   assert.equal(dailyAllowance(parseProgress(JSON.stringify(initial)), now).limit, 10);
   for (const invalid of [-1, 1.5, NaN]) assert.throws(() => setNewCardsPerDay(initial, invalid));
   assert.throws(() => parseProgress(JSON.stringify({ ...initial, newCardsPerDay: -1 })));
+});
+
+test('ratings append durable review events without replacing current card state', () => {
+  const start = newProgress(now);
+  const first = rateCard(start, pair[0], 'again', now);
+  const repeatTime = new Date(first.cards[pair[0].id].due);
+  const second = rateCard(first, pair[0], 'good', repeatTime);
+
+  assert.equal(start.reviews.length, 0);
+  assert.equal(second.reviews.length, 2);
+  assert.deepEqual(second.reviews.map((review) => review.answer), ['again', 'good']);
+  assert.deepEqual(second.reviews.map((review) => review.cardId), [pair[0].id, pair[0].id]);
+  assert.equal(second.reviews[0].stateBefore, 0);
+  assert.equal(second.reviews[1].stateBefore, first.cards[pair[0].id].state);
+  assert.equal(second.reviews[1].stateAfter, second.cards[pair[0].id].state);
+  assert.equal(second.reviews[1].due, second.cards[pair[0].id].due);
+  assert.equal(second.reviews[0].studyDay, first.day);
+  assert.equal(new Set(second.reviews.map((review) => review.id)).size, 2);
+  assert.deepEqual(parseProgress(JSON.stringify(second)), second);
+});
+
+test('older progress migrates to an empty review history and malformed history is rejected', () => {
+  const current = rateCard(newProgress(now), pair[0], 'good', now);
+  const { reviews: _reviews, ...legacy } = current;
+  assert.deepEqual(parseProgress(JSON.stringify(legacy), now).reviews, []);
+
+  const malformed = structuredClone(current);
+  malformed.reviews[0].reviewedAt = 'not a date';
+  assert.throws(() => parseProgress(JSON.stringify(malformed)), /review history/);
+
+  const duplicate = structuredClone(current);
+  duplicate.reviews.push({ ...duplicate.reviews[0] });
+  assert.throws(() => parseProgress(JSON.stringify(duplicate)), /review history/);
+});
+
+test('activity summary counts review events, study days and streaks', () => {
+  const dayOne = new Date(2026, 8, 12, 12);
+  const dayTwo = new Date(2026, 8, 13, 12);
+  let progress = rateCard(newProgress(dayOne), pair[0], 'good', dayOne);
+  progress = rateCard(progress, pair[1], 'again', dayTwo);
+  progress = rateCard(progress, pair[1], 'good', new Date(progress.cards[pair[1].id].due));
+  const summary = activitySummary(progress, now, 7);
+  assert.equal(summary.totalReviews, 3);
+  assert.equal(summary.studyDays, 2);
+  assert.equal(summary.currentStreak, 2);
+  assert.equal(summary.days.reduce((total, day) => total + day.count, 0), 3);
+});
+
+test('word summaries aggregate both directions and retain scheduling details', () => {
+  let progress = rateCard(newProgress(now), pair[0], 'again', now);
+  progress = rateCard(progress, pair[0], 'good', new Date(progress.cards[pair[0].id].due));
+  const [summary] = wordSummaries(pair, progress);
+  assert.equal(summary.word, 'mitigate');
+  assert.equal(summary.definition, 'make less severe');
+  assert.equal(summary.reviews, 2);
+  assert.equal(summary.passRate, 0.5);
+  assert.equal(summary.lastReviewed, progress.reviews.at(-1)!.reviewedAt);
+  assert.equal(summary.nextReview, progress.cards[pair[0].id].due);
 });
