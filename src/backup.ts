@@ -7,7 +7,7 @@ export function exportBackup(progress: Progress): string {
 export function importBackup(raw: string): Progress {
   const backup = JSON.parse(raw);
   if (!backup || backup.app !== 'vocab-trainer' || backup.version !== 1 || !backup.progress) {
-    throw new Error('Choose a Vocab progress backup (.json).');
+    throw new Error('Choose a Bird Brain progress backup (.json).');
   }
   return parseProgress(JSON.stringify(backup.progress));
 }

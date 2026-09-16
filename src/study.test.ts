@@ -4,7 +4,7 @@ import { simulateHistory } from './simulation.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { setNewCardsPerDay, remainingCards, remainingCardCounts, addExtraCards, createDeck, dailyAllowance, isBuried, localDay, newCardsAvailableToday, newProgress, nextStudyDay, nextCard, nextReviewAt, parseProgress, rateCard, readProgress } from './study.ts';
+import { setNewCardsPerDay, remainingCards, remainingCardCounts, createDeck, dailyAllowance, isBuried, localDay, newProgress, nextStudyDay, nextCard, parseProgress, rateCard, readProgress } from './study.ts';
 
 const now = new Date(2026, 8, 14, 12);
 const tomorrow = new Date(2026, 8, 15, 4, 0);
@@ -87,38 +87,19 @@ test('due siblings are buried without changing their FSRS state or due date', ()
   assert.deepEqual(progress.cards[pair[1].id], siblingBefore);
   assert.equal(isBuried(pair[1], progress, tomorrow), false);
   assert.ok(nextCard(pair, progress, tomorrow));
-  assert.ok(nextReviewAt([pair[1]], progress, now)!.getTime() > now.getTime(), 'completion must not advertise a buried overdue card in the past');
 });
 
-test('extra five-card batch persists and cannot bypass burying or unfinished work', () => {
-  const initial = newProgress(now);
-  const deck = createDeck(csv, initial.seed);
-  assert.equal(addExtraCards(deck, initial, now), initial);
-  const finished = finishAvailable(initial, deck);
-  const extended = parseProgress(JSON.stringify(addExtraCards(deck, finished, now)), now);
-  assert.equal(dailyAllowance(extended, now).limit, 15);
-  assert.equal(addExtraCards(deck, extended, now), extended);
-  const finishedMore = finishAvailable(extended, deck);
-  assert.equal(finishedMore.today, 15);
-  assert.equal(new Set(finishedMore.daily.introduced.map((id) => id.split(':')[0])).size, 15);
-  const tiny = finishAvailable(newProgress(now), pair);
-  assert.equal(newCardsAvailableToday(pair, tiny, now), 0);
-  assert.equal(addExtraCards(pair, tiny, now), tiny, 'no extra batch when only buried new cards remain');
-  assert.equal(newCardsAvailableToday(pair, tiny, tomorrow), 1);
-});
-
-test('4am resets allowance and extra batches; missed days do not accumulate', () => {
+test('4am resets the new-card allowance; missed days do not accumulate', () => {
   const before = new Date(2026, 8, 14, 23, 59);
   const deck = createDeck(csv, 2);
   const finished = finishAvailable(newProgress(before), deck, before);
-  const extended = addExtraCards(deck, finished, before);
-  assert.equal(dailyAllowance(extended, before).limit, 15);
-  assert.equal(dailyAllowance(extended, tomorrow).limit, 10);
-  assert.equal(dailyAllowance(extended, tomorrow).introduced.length, 0);
+  assert.equal(dailyAllowance(finished, before).limit, 10);
+  assert.equal(dailyAllowance(finished, tomorrow).limit, 10);
+  assert.equal(dailyAllowance(finished, tomorrow).introduced.length, 0);
   const later = new Date(2026, 9, 20, 12);
-  assert.equal(dailyAllowance(extended, later).limit, 10);
-  const due = nextCard(deck, extended, later)!;
-  assert.ok(extended.cards[due.id], 'overdue reviews still precede new cards');
+  assert.equal(dailyAllowance(finished, later).limit, 10);
+  const due = nextCard(deck, finished, later)!;
+  assert.ok(finished.cards[due.id], 'overdue reviews still precede new cards');
 });
 
 test('card allowance includes a previously unseen reverse direction', () => {
@@ -198,7 +179,7 @@ test('4am boundary controls allowance, sibling burying and future reviews', () =
   assert.equal(dailyAllowance(progress, before).introduced.length, 1);
   assert.equal(isBuried(pair[1], progress, before), true);
   assert.equal(nextCard(pair, progress, before), null);
-  assert.equal(nextReviewAt(pair, progress, before)?.getTime(), after.getTime());
+  assert.equal(nextStudyDay(before).getTime(), after.getTime());
   assert.equal(dailyAllowance(progress, after).introduced.length, 0);
   assert.equal(isBuried(pair[1], progress, after), false);
   assert.equal(nextCard(pair, progress, after)?.id, pair[0].id);

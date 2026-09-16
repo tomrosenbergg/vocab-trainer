@@ -1,4 +1,4 @@
-# Vocab
+# Bird Brain
 
 A minimal, browser-only SAT vocabulary trainer. Click anywhere in the main study area to reveal the answer, then choose **Fail** or **Pass**. There is no login, backend, analytics, or external font request.
 
@@ -32,7 +32,7 @@ After reviewing a card, its sibling (the opposite direction of the same word) is
 
 All reviews scheduled before the next 4 a.m. are available in today's session. Already-due cards come first, followed by today's future review cards, new cards, and future learning repeats in due-time order. Short learning steps can therefore be completed without waiting for the clock. Fail may require more repetitions before the session finishes. FSRS receives the actual review time and retains its own due dates.
 
-Once today's work is complete, the app waits until 4 a.m. for the next allowance and reviews. The completion screen offers no extra-card option. Previously granted extra allowance expires at 4 a.m.; missed days do not accumulate allowance. The timezone comes from the device/browser, not IP geolocation. Calendar-based boundaries respect daylight saving time. An idle open tab refreshes within 15 seconds of rollover.
+Once today's work is complete, the app waits until 4 a.m. for the next allowance and reviews. Missed days do not accumulate allowance. The timezone comes from the device/browser, not IP geolocation. Calendar-based boundaries respect daylight saving time. An idle open tab refreshes within 15 seconds of rollover.
 
 This is self-assessed recall; equivalent definitions or synonyms can count as correct.
 
@@ -53,7 +53,7 @@ Uses `ts-fsrs` at 90% requested retention. The two choices map to FSRS grades:
 
 Both buttons share the same styling. Review intervals are hidden; FSRS schedules cards in the background. Existing schedules are preserved; future answers use this mapping.
 
-Card states, review history, shuffle seed, daily new-card allowance, and today's review count are stored under `vocab.progress.v1` in localStorage. Each rating appends a review event containing the card ID, timestamp, study day, answer, state transition, and resulting due date while the latest card state remains available for fast scheduling. Progress saved before review history existed migrates with an empty event log; past ratings cannot be reconstructed. Dates are serialized and restored explicitly. Reloading preserves progress; clearing browser data removes it. Automatic device sync and offline page installation are outside this scaffold. An already loaded page requires no network to study, but reopening the app still requires the local server or a future static host.
+Card states, review history, shuffle seed, daily new-card allowance, and today's review count are stored under `vocab.progress.v1` in localStorage. The old key is retained so existing Bird Brain users keep their progress. Each rating appends a review event containing the card ID, timestamp, study day, answer, state transition, and resulting due date while the latest card state remains available for fast scheduling. Progress saved before review history existed migrates with an empty event log; past ratings cannot be reconstructed. Dates are serialized and restored explicitly. Reloading preserves progress; clearing browser data removes it. Automatic device sync and offline page installation are outside this scaffold. An already loaded page requires no network to study, but reopening the app requires the deployed site or local server.
 
 Invalid saved data is left untouched and reported. Storage failures disable grading rather than pretending reviews have been saved. Tabs listen for storage changes and refresh their displayed card; saving also checks for a stale review. Simultaneous writes from different tabs are not transactional, so use one active study tab.
 
@@ -88,7 +88,8 @@ Profiles are `consistent`, `casual`, `struggling`, `advanced`, and `lapsed`. Opt
 
 ## Structure
 
-- `src/main.ts`: study interface and browser persistence
+- `src/main.ts`: application state, browser persistence, and event handling
+- `src/views/`: practice, stats, and settings interface modules
 - `src/study.ts`: CSV parsing, deck, validation, and scheduling
 - `src/stats.ts`: activity and word-level progress summaries
 - `src/style.css`: responsive appearance
@@ -98,17 +99,9 @@ The Stats view shows a 12-week activity heat map, current streak, review totals,
 
 The production build is static output in `dist/`.
 
-## GitHub Pages
+## Deployment
 
-The workflow in `.github/workflows/deploy-pages.yml` runs tests, builds the site, and deploys pushes to `main`. You can also run **Deploy to GitHub Pages** manually from the repository’s Actions tab.
-
-One-time setup: open **Settings → Pages → Build and deployment → Source** and select **GitHub Actions**. If the initial workflow ran before Pages was enabled, rerun it from Actions.
-
-The site address is https://tomrosenbergg.github.io/vocab-trainer/.
-
-`npm run build:pages` sets the asset and home-link base to `/vocab-trainer/`. Ordinary `npm run dev` and `npm run build` retain the root path for local development or other hosting. If the repository is renamed, update the Pages build path and site URL here.
-
-The live site stores progress separately from localhost. Reset progress is available in Settings on the published site. No secrets or personal access tokens are needed in the workflow; deployment uses GitHub’s built-in token.
+Vercel builds the private GitHub repository with `npm run build` and serves `dist/`. Pushes to the connected production branch deploy automatically. Preview deployments are created for other pushed branches and pull requests. The live site stores progress separately from localhost because browser storage is scoped to each origin.
 
 ## Stored-data compatibility
 

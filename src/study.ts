@@ -33,7 +33,6 @@ export type Progress = {
 };
 export const STORAGE_KEY = 'vocab.progress.v1';
 export const DAILY_NEW_CARDS = 10;
-export const EXTRA_NEW_CARDS = 5;
 
 export const ANSWERS = ['again', 'hard', 'good', 'easy'] as const;
 export type Answer = typeof ANSWERS[number];
@@ -76,26 +75,6 @@ export function isBuried(card: StudyCard, progress: Progress, now: Date): boolea
   const siblingId = `${wordKey(card)}:${card.direction === 'meaning' ? 'word' : 'meaning'}`;
   const review = progress.cards[siblingId]?.last_review;
   return Boolean(review && localDay(new Date(review)) === localDay(now));
-}
-
-// At most one new direction per word can be introduced today.
-export function newCardsAvailableToday(deck: StudyCard[], progress: Progress, now: Date): number {
-  return new Set(deck.filter((card) => !progress.cards[card.id] && !isBuried(card, progress, now)).map(wordKey)).size;
-}
-
-export function nextReviewAt(deck: StudyCard[], progress: Progress, now: Date): Date | null {
-  const dates = deck.filter((card) => progress.cards[card.id]).map((card) => {
-    const available = studyDayStart(new Date(progress.cards[card.id].due)).getTime();
-    return Math.max(available, isBuried(card, progress, now) ? nextStudyDay(now).getTime() : now.getTime());
-  });
-  return dates.length ? new Date(Math.min(...dates)) : null;
-}
-
-export function addExtraCards(deck: StudyCard[], progress: Progress, now: Date): Progress {
-  if (nextCard(deck, progress, now) || !newCardsAvailableToday(deck, progress, now)) return progress;
-  const daily = dailyAllowance(progress, now);
-  return { ...progress, daily: { unit: 'cards', day: daily.day, introduced: daily.introduced,
-    extra: Math.max(daily.extra, daily.introduced.length - DAILY_NEW_CARDS) + EXTRA_NEW_CARDS } };
 }
 
 function shuffle<T>(values: T[], seed: number): T[] {
@@ -259,12 +238,4 @@ export function rateCard(progress: Progress, card: StudyCard, answer: Answer, no
     cards: { ...progress.cards, [card.id]: { ...result, due: result.due.toISOString(), last_review: result.last_review?.toISOString() } },
     reviews: [...progress.reviews, review],
   };
-}
-
-export function intervalLabel(progress: Progress, card: StudyCard, answer: Answer, now: Date): string {
-  const next = rateCard(progress, card, answer, now).cards[card.id];
-  const minutes = Math.max(1, Math.round((Date.parse(next.due) - now.getTime()) / 60000));
-  if (minutes < 60) return `${minutes}m`;
-  if (minutes < 1440) return `${Math.round(minutes / 60)}h`;
-  return `${Math.round(minutes / 1440)}d`;
 }
