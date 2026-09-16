@@ -1,9 +1,10 @@
 import { exportBackup, importBackup, restoreAnswer } from './backup.ts';
 import { activitySummary, wordSummaries } from './stats.ts';
+import { simulateHistory } from './simulation.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { setNewCardsPerDay, remainingCards, remainingCardCounts, addExtraCards, createDeck, dailyAllowance, isBuried, newCardsAvailableToday, newProgress, nextStudyDay, nextCard, nextReviewAt, parseProgress, rateCard, readProgress } from './study.ts';
+import { setNewCardsPerDay, remainingCards, remainingCardCounts, addExtraCards, createDeck, dailyAllowance, isBuried, localDay, newCardsAvailableToday, newProgress, nextStudyDay, nextCard, nextReviewAt, parseProgress, rateCard, readProgress } from './study.ts';
 
 const now = new Date(2026, 8, 14, 12);
 const tomorrow = new Date(2026, 8, 15, 4, 0);
@@ -373,4 +374,27 @@ test('word summaries aggregate both directions and retain scheduling details', (
   assert.equal(summary.passRate, 0.5);
   assert.equal(summary.lastReviewed, progress.reviews.at(-1)!.reviewedAt);
   assert.equal(summary.nextReview, progress.cards[pair[0].id].due);
+});
+
+test('history simulator creates deterministic, importable multi-day progress', () => {
+  const simulationCsv = Array.from({ length: 40 }, (_, index) =>
+    `word${index},definition ${index},Word ${index} appears in this example.`).join('\n');
+  const options = { profile: 'consistent' as const, days: 21, seed: 123, newCardsPerDay: 3, endDate: now };
+  const first = simulateHistory(simulationCsv, options);
+  const second = simulateHistory(simulationCsv, options);
+  assert.deepEqual(first, second);
+  assert.equal(first.studyDays, 21);
+  assert.ok(first.reviews > 21);
+  assert.ok(first.cardsStarted > 3);
+  assert.deepEqual(parseProgress(JSON.stringify(first.progress)), first.progress);
+  assert.ok(new Set(first.progress.reviews.map((review) => review.studyDay)).size > 1);
+});
+
+test('lapsed simulation skips a block of days and returns afterward', () => {
+  const simulationCsv = Array.from({ length: 80 }, (_, index) =>
+    `word${index},definition ${index},Word ${index} appears in this example.`).join('\n');
+  const result = simulateHistory(simulationCsv, { profile: 'lapsed', days: 30, seed: 7, newCardsPerDay: 2, endDate: now });
+  const days = [...new Set(result.progress.reviews.map((review) => review.studyDay))];
+  assert.ok(result.studyDays < 30);
+  assert.ok(days.includes(localDay(now)), 'the simulated learner should return after the lapse');
 });

@@ -67,6 +67,18 @@ After grading, **Cmd/Ctrl+Z** restores the previous card, schedule, daily allowa
 
 Settings includes **Reset progress** with a confirmation. It clears this browser's study history and schedules, resets the daily count and shuffle, and preserves the new-cards-per-day preference. Export a backup first if you may want to restore progress. Cancelling changes nothing. The old development-only footer control has been removed.
 
+## Simulated history
+
+Generate an importable backup for testing the app after days or months of use:
+
+```sh
+npm run simulate -- --profile consistent --days 90
+```
+
+The command uses the real deck, FSRS scheduler, 4 a.m. study days, sibling burying, and review-event format. It writes `simulated-progress.json` by default; import that file from **Settings → Import progress**. Import replaces browser progress, so export real progress first.
+
+Profiles are `consistent`, `casual`, `struggling`, `advanced`, and `lapsed`. Options include `--new`, `--seed`, and `--output`; run `npm run simulate -- --help` for details. Generated backup files matching `simulated-progress*.json` are ignored by Git.
+
 ## Keyboard
 
 - **Space**: reveal answer
