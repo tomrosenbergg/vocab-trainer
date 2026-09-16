@@ -1,5 +1,8 @@
+import { activityMarkup } from './stats.ts';
+
 export const settingsMarkup = `
   <section id="settings" class="app-view" aria-labelledby="settings-title" hidden>
+    ${activityMarkup}
     <h1 id="settings-title">Settings</h1>
     <div id="daily-settings" class="settings-panel">
       <div class="limit-controls"><label for="daily-limit">New cards per day:</label><input id="daily-limit" type="text" inputmode="numeric" pattern="[0-9]*" value="10" aria-describedby="limit-status" autocomplete="off"></div>

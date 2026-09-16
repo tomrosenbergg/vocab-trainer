@@ -4,7 +4,7 @@ import './style.css';
 import csv from '../cards.csv?raw';
 import { practiceMarkup, renderPracticeCard, revealPracticeCard } from './views/practice.ts';
 import { settingsMarkup } from './views/settings.ts';
-import { renderStatsView, renderWordList, statsMarkup } from './views/stats.ts';
+import { cardsMarkup, renderActivityView, renderCardsView, setupStatsSorting, setupWordBrowser } from './views/stats.ts';
 import {
   createDeck, dailyAllowance, isBuried, remainingCardCounts,
   nextCard, rateCard, readProgress, newProgress,
@@ -19,7 +19,7 @@ app.innerHTML = `
     <header><a class="brand" href="${import.meta.env.BASE_URL}" aria-label="Bird brain home"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 28 28" width="25" height="25" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18.5c0-5.1 3.2-9.3 8-9.3 4.6 0 7.8 3.5 7.8 7.4 0 4.2-3.1 7-7.8 7H9.5c-2 0-3.5-1.8-3.5-5.1Z" fill="currentColor" stroke="none"/><path d="M20.5 12.5 25 14.7l-4.1 2.2" fill="currentColor" stroke="none"/><circle cx="17" cy="12.8" r="1.1" fill="#17191b" stroke="none"/><path d="M10.2 18c1.7-1.8 4-2.1 6-.8" stroke="#17191b" stroke-width="1.4"/><path d="M11.5 23.2v2M16.5 23.2v2" stroke="currentColor" stroke-width="1.4"/></svg></span> bird brain</a><nav class="view-nav" aria-label="App views"><button class="settings-toggle quiet" id="open-practice" type="button" aria-label="Practice" aria-pressed="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="6" y="6" width="14" height="16" rx="2"/><path d="M16 6V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h2"/></svg></button><button class="settings-toggle quiet" id="open-stats" type="button" aria-label="Stats" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20V7"/></svg></button><button class="settings-toggle quiet" id="open-settings" type="button" aria-label="Settings" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 3-.5 2-2 1.2-2-.5-2 3.5 1.5 1.5v2.6L2.5 15l2 3.5 2-.5 2 1.2.5 2h4l.5-2 2-1.2 2 .5 2-3.5-1.5-1.7v-2.6L19.5 9l-2-3.5-2 .5-2-1.2-.5-2Z"/><circle cx="11" cy="12" r="3"/></svg></button></nav></header>
     <main>
       ${practiceMarkup}
-      ${statsMarkup}
+      ${cardsMarkup}
       ${settingsMarkup}
       <p class="error" id="error" role="alert" hidden></p>
       <span class="sr-only" id="announcement" role="status" aria-live="polite"></span>
@@ -27,12 +27,16 @@ app.innerHTML = `
     <footer><span class="local-note"><svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14" fill="none"><rect x="3.5" y="7" width="9" height="7" rx="1.5" stroke="currentColor"/><path d="M5.5 7V4.5a2.5 2.5 0 0 1 5 0V7" stroke="currentColor"/></svg> saved in this browser</span><div class="user-messages"><p class="remaining" id="remaining" aria-live="polite" aria-atomic="true"></p></div></footer>
   </div>`;
 
+setupStatsSorting();
+setupWordBrowser();
+el('open-stats').setAttribute('aria-label', 'Cards');
+
 let progress: Progress;
 let deck: StudyCard[] = [];
 let current: StudyCard | null = null;
 let revealed = false;
 let failed = false;
-let activeView: 'practice' | 'stats' | 'settings' = 'practice';
+let activeView: 'practice' | 'cards' | 'settings' = 'practice';
 const undoStack: Undo[] = [];
 
 function fail(error: unknown) {
@@ -190,14 +194,15 @@ el('reset-progress').addEventListener('click', () => {
 
 function updateView() {
   const studying = activeView === 'practice';
-  const viewingStats = activeView === 'stats';
+  const viewingCards = activeView === 'cards';
   el('practice-view').hidden = !studying;
-  el('stats').hidden = !viewingStats;
+  el('cards').hidden = !viewingCards;
   el('settings').hidden = activeView !== 'settings';
   el('open-practice').setAttribute('aria-pressed', String(studying));
-  el('open-stats').setAttribute('aria-pressed', String(viewingStats));
+  el('open-stats').setAttribute('aria-pressed', String(viewingCards));
   el('open-settings').setAttribute('aria-pressed', String(activeView === 'settings'));
-  if (viewingStats) renderStatsView(deck, progress);
+  if (viewingCards) renderCardsView(deck, progress);
+  if (activeView === 'settings') renderActivityView(progress);
   document.querySelector('main')!.classList.toggle('can-reveal', studying && Boolean(current) && !revealed && !failed);
   el('reveal-cue').hidden = !studying || !current || revealed || failed || Object.keys(progress.cards).length >= 3;
 }
@@ -230,10 +235,8 @@ el('daily-limit').addEventListener('blur', () => {
   el<HTMLInputElement>('daily-limit').value = String(progress.newCardsPerDay ?? DAILY_NEW_CARDS);
 });
 el('open-practice').addEventListener('click', () => { activeView = 'practice'; if (!current) render(); else updateView(); });
-el('open-stats').addEventListener('click', () => { activeView = 'stats'; updateView(); });
+el('open-stats').addEventListener('click', () => { activeView = 'cards'; updateView(); });
 el('open-settings').addEventListener('click', () => { activeView = 'settings'; updateView(); });
-el('word-search').addEventListener('input', () => renderWordList(el<HTMLInputElement>('word-search').value));
-
 document.addEventListener('keydown', (event) => {
   if (activeView !== 'practice') return;
   if (event.target instanceof HTMLElement && event.target.closest('.view-nav')) return;

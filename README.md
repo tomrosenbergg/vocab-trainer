@@ -44,6 +44,7 @@ mitigate,"to make less severe, serious, or painful",The barriers mitigate flood 
 
 Definition edits retain scheduling history. New or renamed words get new card IDs; removing a word removes its cards from the queue but leaves its saved history unused. The development server picks up CSV edits; a production copy must be rebuilt. Example sentences appear beneath the answer only after reveal in both directions. Editing a sentence also preserves scheduling history. Audio, account sync, and tutor referrals are not implemented yet.
 
+
 ## Scheduling and storage
 
 Uses `ts-fsrs` at 90% requested retention. The two choices map to FSRS grades:
@@ -95,7 +96,7 @@ Profiles are `consistent`, `casual`, `struggling`, `advanced`, and `lapsed`. Opt
 - `src/style.css`: responsive appearance
 - `src/study.test.ts`: import, recall, persistence, and scheduling checks
 
-The Stats view shows a 12-week activity heat map, current streak, review totals, and a searchable Words list. Word rows aggregate both scheduled directions and show state, review count, pass rate, last review, and next review. Activity begins when review-event recording was introduced; earlier card state is preserved but cannot be reconstructed into historical events.
+The Settings view starts with a 12-week activity heat map, current streak, and review totals. The Cards view provides a sortable Words browser; select a row to inspect the full word, definition, and example sentence. Activity begins when review-event recording was introduced; earlier card state is preserved but cannot be reconstructed into historical events.
 
 The production build is static output in `dist/`.
 
