@@ -16,6 +16,7 @@ export type WordSummary = {
   passRate: number | null;
   lastReviewed: string | null;
   nextReview: string | null;
+  suspended: boolean;
 };
 
 function shiftDay(date: Date, days: number): Date {
@@ -82,6 +83,7 @@ export function wordSummaries(deck: StudyCard[], progress: Progress): WordSummar
       passRate: reviews.length ? passes / reviews.length : null,
       lastReviewed: reviewedAt.at(-1) ?? null,
       nextReview: due[0] ?? null,
+      suspended: progress.suspended.includes(encodeURIComponent(word.toLowerCase())),
     };
   }).sort((a, b) => a.word.localeCompare(b.word));
 }

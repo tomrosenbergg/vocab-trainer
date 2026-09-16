@@ -18,59 +18,39 @@ export const cardsMarkup = `
   <section id="cards" class="app-view" aria-label="Card browser" hidden>
     <section class="words" aria-label="Card browser">
       <div class="word-browser">
-        <div class="word-table" role="table" aria-label="Vocabulary progress">
-        <div class="word-row word-header" role="row"><span role="columnheader" aria-sort="ascending"><button class="sort-button" data-sort="word" type="button">Word</button></span><span role="columnheader" aria-sort="none"><button class="sort-button" data-sort="reviews" type="button">Reviews</button></span><span role="columnheader" aria-sort="none"><button class="sort-button" data-sort="next" type="button">Next</button></span></div>
-          <div id="word-list" role="rowgroup"></div>
+        <div class="word-table" aria-label="Vocabulary">
+          <div id="word-list" role="list"></div>
         </div>
         <aside class="word-detail" id="word-detail" aria-labelledby="word-detail-title">
           <h3 id="word-detail-title">Choose a word</h3>
+          <p class="detail-meta" id="word-detail-meta"></p>
           <p class="detail-definition" id="word-detail-definition"></p>
           <p class="detail-example" id="word-detail-example"></p>
         </aside>
+        <div id="card-context-menu" class="card-context-menu" role="menu" hidden><button id="suspend-selected" type="button" role="menuitem">Suspend selected</button></div>
     </section>
   </section>`;
 
 let words: WordSummary[] = [];
 let selectedWord: string | null = null;
+let selectedWords = new Set<string>();
 let currentDeck: StudyCard[] = [];
-type SortKey = 'word' | 'reviews' | 'next';
-let sortKey: SortKey = 'word';
-let sortAscending = true;
 
 function formatDate(value: string | null): string {
   return value ? new Date(value).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '—';
 }
 
-function sortedWords(): WordSummary[] {
-  return [...words].sort((a, b) => {
-    let comparison: number;
-    if (sortKey === 'word') comparison = a.word.localeCompare(b.word);
-    else if (sortKey === 'reviews') comparison = a.reviews - b.reviews;
-    else if (sortKey === 'next') {
-      // Unscheduled new cards stay at the end in either direction.
-      if (!a.nextReview && b.nextReview) return 1;
-      if (a.nextReview && !b.nextReview) return -1;
-      comparison = (a.nextReview && b.nextReview) ? Date.parse(a.nextReview) - Date.parse(b.nextReview) : 0;
-    } else comparison = 0;
-    return sortAscending ? comparison : -comparison;
-  });
-}
-
 function renderWordList(): void {
   const fragment = document.createDocumentFragment();
-  for (const item of sortedWords()) {
-    const row = document.createElement('div');
+  for (const item of words) {
+    const row = document.createElement('button');
+    row.type = 'button';
     row.className = 'word-row';
-    row.classList.toggle('selected', item.word === selectedWord);
+    row.classList.toggle('selected', selectedWords.has(item.word));
+    row.classList.toggle('suspended', item.suspended);
     row.dataset.word = item.word;
-    row.setAttribute('role', 'row');
-    const values = [item.word, String(item.reviews), formatDate(item.nextReview)];
-    values.forEach((value, index) => {
-      const cell = document.createElement('span');
-      cell.setAttribute('role', 'cell');
-      cell.textContent = value;
-      row.append(cell);
-    });
+    row.textContent = item.word;
+    row.setAttribute('aria-label', item.suspended ? `${item.word}, suspended` : item.word);
     fragment.append(row);
   }
   el('word-list').replaceChildren(fragment);
@@ -86,33 +66,49 @@ function renderWordDetail(): void {
   }
   selectedWord = item.word;
   el('word-detail-title').textContent = item.word;
+  el('word-detail-meta').textContent = `${item.reviews} ${item.reviews === 1 ? 'review' : 'reviews'} · next ${formatDate(item.nextReview)}`;
   el('word-detail-definition').textContent = item.definition;
   el('word-detail-example').textContent = `“${forward.example}”`;
 }
 
-export function setupStatsSorting(): void {
-  for (const button of document.querySelectorAll<HTMLButtonElement>('.sort-button')) {
-    button.addEventListener('click', () => {
-      const nextKey = button.dataset.sort as SortKey;
-      if (sortKey === nextKey) sortAscending = !sortAscending;
-      else { sortKey = nextKey; sortAscending = true; }
-      for (const header of document.querySelectorAll<HTMLElement>('[data-sort]')) {
-        const column = header.closest('[role="columnheader"]');
-        column?.setAttribute('aria-sort', header === button ? (sortAscending ? 'ascending' : 'descending') : 'none');
-      }
-      renderWordList();
-    });
-  }
-}
-
-export function setupWordBrowser(): void {
+export function setupWordBrowser(onSuspend: (words: string[], suspended: boolean) => void): void {
   el('word-list').addEventListener('click', (event) => {
-    if (event.target instanceof HTMLInputElement) return;
     const row = event.target instanceof Element ? event.target.closest<HTMLElement>('.word-row[data-word]') : null;
     if (!row?.dataset.word) return;
+    const index = words.findIndex((word) => word.word === row.dataset.word);
+    if (event.shiftKey && selectedWord) {
+      const anchor = words.findIndex((word) => word.word === selectedWord);
+      if (anchor >= 0 && index >= 0) {
+        const [from, to] = anchor < index ? [anchor, index] : [index, anchor];
+        selectedWords = new Set(words.slice(from, to + 1).map((word) => word.word));
+      }
+    } else if (event.metaKey || event.ctrlKey) {
+      if (selectedWords.has(row.dataset.word)) selectedWords.delete(row.dataset.word); else selectedWords.add(row.dataset.word);
+    } else selectedWords = new Set([row.dataset.word]);
     selectedWord = row.dataset.word;
     renderWordList();
   });
+  const menu = el<HTMLElement>('card-context-menu');
+  el('word-list').addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+    const row = event.target instanceof Element ? event.target.closest<HTMLElement>('.word-row[data-word]') : null;
+    if (!row?.dataset.word) return;
+    if (!selectedWords.has(row.dataset.word)) { selectedWords = new Set([row.dataset.word]); selectedWord = row.dataset.word; renderWordList(); }
+    const chosen = words.filter((word) => selectedWords.has(word.word));
+    const allSuspended = chosen.length > 0 && chosen.every((word) => word.suspended);
+    el<HTMLButtonElement>('suspend-selected').textContent = allSuspended ? 'Resume selected' : 'Suspend selected';
+    menu.style.left = `${Math.min(event.clientX, window.innerWidth - 180)}px`;
+    menu.style.top = `${Math.min(event.clientY, window.innerHeight - 52)}px`;
+    menu.hidden = false;
+  });
+  el('suspend-selected').addEventListener('click', () => {
+    const chosen = words.filter((word) => selectedWords.has(word.word));
+    const allSuspended = chosen.length > 0 && chosen.every((word) => word.suspended);
+    onSuspend(chosen.map((word) => word.word), !allSuspended);
+    menu.hidden = true;
+  });
+  document.addEventListener('click', (event) => { if (!(event.target instanceof Element && event.target.closest('#card-context-menu'))) menu.hidden = true; });
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') menu.hidden = true; });
 }
 
 export function renderActivityView(progress: Progress, now = new Date()): void {
@@ -138,5 +134,7 @@ export function renderCardsView(deck: StudyCard[], progress: Progress): void {
   currentDeck = deck;
   words = wordSummaries(deck, progress);
   if (!selectedWord || !words.some((word) => word.word === selectedWord)) selectedWord = words[0]?.word ?? null;
+  selectedWords = new Set([...selectedWords].filter((word) => words.some((item) => item.word === word)));
+  if (selectedWord && !selectedWords.size) selectedWords.add(selectedWord);
   renderWordList();
 }

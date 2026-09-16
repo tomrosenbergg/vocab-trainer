@@ -4,7 +4,7 @@ import { simulateHistory } from './simulation.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { setNewCardsPerDay, remainingCards, remainingCardCounts, createDeck, dailyAllowance, isBuried, localDay, newProgress, nextStudyDay, nextCard, parseProgress, rateCard, readProgress } from './study.ts';
+import { setNewCardsPerDay, setWordSuspended, remainingCards, remainingCardCounts, createDeck, dailyAllowance, isBuried, localDay, newProgress, nextStudyDay, nextCard, parseProgress, rateCard, readProgress } from './study.ts';
 
 const now = new Date(2026, 8, 14, 12);
 const tomorrow = new Date(2026, 8, 15, 4, 0);
@@ -255,6 +255,16 @@ test('remaining count respects allowance, siblings, repeats and completion', () 
   assert.equal(remainingCards(pair, bothDue, now), 1, 'due siblings only count once');
   delete bothDue.cards[pair[1].id];
   assert.equal(remainingCards(pair, bothDue, now), 1, 'unseen sibling of a due card is not extra work');
+});
+
+test('suspending a word removes both directions until resumed', () => {
+  const deck = [pair[0], pair[1]];
+  let progress = newProgress(now);
+  progress = setWordSuspended(progress, 'mitigate', true);
+  assert.equal(nextCard(deck, progress, now), null);
+  assert.deepEqual(remainingCardCounts(deck, progress, now), { newCards: 0, reviews: 0, learning: 0 });
+  progress = setWordSuspended(progress, 'mitigate', false);
+  assert.equal(nextCard(deck, progress, now)?.word, 'mitigate');
 });
 
 

@@ -4,11 +4,11 @@ import './style.css';
 import csv from '../cards.csv?raw';
 import { practiceMarkup, renderPracticeCard, revealPracticeCard } from './views/practice.ts';
 import { settingsMarkup } from './views/settings.ts';
-import { cardsMarkup, renderActivityView, renderCardsView, setupStatsSorting, setupWordBrowser } from './views/stats.ts';
+import { cardsMarkup, renderActivityView, renderCardsView, setupWordBrowser } from './views/stats.ts';
 import {
   createDeck, dailyAllowance, isBuried, remainingCardCounts,
   nextCard, rateCard, readProgress, newProgress,
-  STORAGE_KEY, DAILY_NEW_CARDS, setNewCardsPerDay,
+  STORAGE_KEY, DAILY_NEW_CARDS, setNewCardsPerDay, setWordSuspended,
   type Answer, type Progress, type StudyCard,
 } from './study.ts';
 
@@ -27,8 +27,11 @@ app.innerHTML = `
     <footer><span class="local-note"><svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14" fill="none"><rect x="3.5" y="7" width="9" height="7" rx="1.5" stroke="currentColor"/><path d="M5.5 7V4.5a2.5 2.5 0 0 1 5 0V7" stroke="currentColor"/></svg> saved in this browser</span><div class="user-messages"><p class="remaining" id="remaining" aria-live="polite" aria-atomic="true"></p></div></footer>
   </div>`;
 
-setupStatsSorting();
-setupWordBrowser();
+setupWordBrowser((words, suspended) => {
+  for (const word of words) progress = setWordSuspended(progress, word, suspended);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+  renderCardsView(deck, progress);
+});
 el('open-stats').setAttribute('aria-label', 'Cards');
 
 let progress: Progress;

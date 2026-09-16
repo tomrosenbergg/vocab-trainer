@@ -96,7 +96,7 @@ Profiles are `consistent`, `casual`, `struggling`, `advanced`, and `lapsed`. Opt
 - `src/style.css`: responsive appearance
 - `src/study.test.ts`: import, recall, persistence, and scheduling checks
 
-The Settings view starts with a 12-week activity heat map, current streak, and review totals. The Cards view provides a sortable Words browser; select a row to inspect the full word, definition, and example sentence. Activity begins when review-event recording was introduced; earlier card state is preserved but cannot be reconstructed into historical events.
+The Settings view starts with a 12-week activity heat map, current streak, and review totals. The Cards view provides a scrollable word browser; select one or more rows to inspect a word and use the context menu to suspend or resume them. Activity begins when review-event recording was introduced; earlier card state is preserved but cannot be reconstructed into historical events.
 
 The production build is static output in `dist/`.
 

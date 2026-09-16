@@ -26,6 +26,7 @@ export type Progress = {
   seed: number;
   cards: Record<string, SavedCard>;
   reviews: ReviewEvent[];
+  suspended: string[];
   day: string;
   today: number;
   lastWord: string | null;
@@ -56,11 +57,19 @@ export function nextStudyDay(now: Date): Date {
 }
 
 export function newProgress(now = new Date()): Progress {
-  return { version: 1, seed: Math.floor(Math.random() * 0xffffffff), cards: {}, reviews: [], day: localDay(now), today: 0, lastWord: null,
+  return { version: 1, seed: Math.floor(Math.random() * 0xffffffff), cards: {}, reviews: [], suspended: [], day: localDay(now), today: 0, lastWord: null,
     daily: { unit: 'cards', day: localDay(now), introduced: [], extra: 0 } };
 }
 
 const wordKey = (card: StudyCard) => encodeURIComponent(card.word.toLowerCase());
+const wordKeyFromWord = (word: string) => encodeURIComponent(word.toLowerCase());
+export function isSuspended(card: StudyCard, progress: Progress): boolean { return progress.suspended.includes(wordKey(card)); }
+export function setWordSuspended(progress: Progress, word: string, suspended: boolean): Progress {
+  const key = wordKeyFromWord(word);
+  const values = new Set(progress.suspended);
+  if (suspended) values.add(key); else values.delete(key);
+  return { ...progress, suspended: [...values] };
+}
 export function dailyAllowance(progress: Progress, now: Date) {
   const daily = progress.daily.day === localDay(now) ? progress.daily : { unit: 'cards' as const, day: localDay(now), introduced: [], extra: 0 };
   return { ...daily, limit: (progress.newCardsPerDay ?? DAILY_NEW_CARDS) + daily.extra };
@@ -133,6 +142,10 @@ export function parseProgress(raw: string, now = new Date()): Progress {
   }
   // Progress saved before review history existed starts with an empty event log.
   data.reviews ??= [];
+  data.suspended ??= [];
+  if (!Array.isArray(data.suspended) || data.suspended.some((key) => typeof key !== 'string')) {
+    throw new Error('Saved suspended cards could not be read. It has been left untouched.');
+  }
   if (!Array.isArray(data.reviews) || data.reviews.some((review) => !review ||
       typeof review.id !== 'string' || !review.id || typeof review.cardId !== 'string' || !review.cardId ||
       typeof review.reviewedAt !== 'string' || !Number.isFinite(Date.parse(review.reviewedAt)) ||
@@ -185,7 +198,7 @@ export function remainingCards(deck: StudyCard[], progress: Progress, now: Date)
 }
 
 export function remainingCardCounts(deck: StudyCard[], progress: Progress, now: Date): { newCards: number; reviews: number; learning: number } {
-  const eligible = deck.filter((card) => !isBuried(card, progress, now));
+  const eligible = deck.filter((card) => !isSuspended(card, progress) && !isBuried(card, progress, now));
   const end = nextStudyDay(now).getTime();
   const reviews = new Set(eligible.filter((card) => progress.cards[card.id] && progress.cards[card.id].state === 2 &&
     Date.parse(progress.cards[card.id].due) < end).map(wordKey));
@@ -199,7 +212,7 @@ export function remainingCardCounts(deck: StudyCard[], progress: Progress, now: 
 }
 
 export function nextCard(deck: StudyCard[], progress: Progress, now: Date): StudyCard | null {
-  const eligible = deck.filter((card) => !isBuried(card, progress, now));
+  const eligible = deck.filter((card) => !isSuspended(card, progress) && !isBuried(card, progress, now));
   const due = eligible.filter((card) => progress.cards[card.id] && Date.parse(progress.cards[card.id].due) < nextStudyDay(now).getTime())
     .sort((a, b) => Date.parse(progress.cards[a.id].due) - Date.parse(progress.cards[b.id].due));
   const ready = due.filter((card) => Date.parse(progress.cards[card.id].due) <= now.getTime());
@@ -214,6 +227,7 @@ export function nextCard(deck: StudyCard[], progress: Progress, now: Date): Stud
 export function rateCard(progress: Progress, card: StudyCard, answer: Answer, now: Date): Progress {
   const daily = dailyAllowance(progress, now);
   const isNewCard = !progress.cards[card.id];
+  if (isSuspended(card, progress)) throw new Error('This card is suspended.');
   if (isBuried(card, progress, now)) throw new Error('This card’s sibling has already been reviewed today.');
   if (isNewCard && daily.introduced.length >= daily.limit) throw new Error('Today’s new-card allowance is complete.');
   const previous = progress.cards[card.id];
