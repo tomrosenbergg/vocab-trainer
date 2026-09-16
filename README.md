@@ -60,7 +60,9 @@ Invalid saved data is left untouched and reported. Storage failures disable grad
 
 ## Undo and backups
 
-After grading, **Cmd/Ctrl+Z** restores the previous card, schedule, daily allowance and sibling availability so you can correct the rating. You can undo repeatedly through this session’s answers. Reload, import or changes in another tab clear the undo stack. A final saved-state check prevents undo from overwriting newer progress.
+The **Undo** icon or **Cmd/Ctrl+Z** reverses the last rating or practice suspension, restoring the previous card, schedule, daily allowance and sibling availability. Undo remains available after completing the queue. You can undo repeatedly through the current session. Reload, import, settings changes, browser suspension changes, or changes in another tab clear the undo stack. A final saved-state check prevents undo from overwriting newer progress.
+
+**Suspend** removes both directions of a word from practice without deleting its history. Resume words from the Cards browser context menu. **Report** is currently a placeholder.
 
 **Settings (gear icon) → Export progress** downloads a JSON backup containing all saved schedules, daily allowance and shuffle seed. **Import progress** validates a backup before asking to replace this browser's history. It does not merge histories. Invalid files leave existing progress untouched. Export first if you want to keep the current history. Backups contain progress, not the vocabulary CSV; they also work between localhost and the published site or another device running the same deck.
 
@@ -85,6 +87,7 @@ Profiles are `consistent`, `casual`, `struggling`, `advanced`, and `lapsed`. Opt
 - **Space**: reveal answer
 - **1**: Again
 - **2**: Good
+- **Cmd/Ctrl+Z**: undo the last practice action
 - **Tab / Enter**: native button navigation and activation
 
 ## Structure
@@ -112,6 +115,6 @@ The footer shows “click anywhere to reveal” until three distinct cards have 
 
 Settings includes **New cards per day**, defaulting to 10. Entering a higher limit makes additional cards available immediately; lowering it never removes completed study or due reviews. Valid whole numbers autosave as you type, with no Save button. The limit persists across days and backups. Zero pauses new cards. Changing this setting clears session undo so it cannot restore an old limit.
 
-Cards default to word → definition. **Test cards in both directions** enables the reverse definition → word cards as well. Changing this setting only changes which directions are eligible for practice; existing schedules and review history are preserved.
+New users default to word → definition; older saved progress keeps its previous bidirectional behavior. **Test cards in both directions** enables the reverse definition → word cards as well. Changing this setting only changes which directions are eligible for practice; existing schedules and review history are preserved. Resetting progress preserves both the daily limit and the direction preference.
 
 The footer separates today’s queue into **new**, **reviews**, and **learning** cards. Learning includes cards in FSRS learning or relearning steps, including cards recently marked Again.

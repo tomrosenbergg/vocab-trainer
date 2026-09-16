@@ -23,7 +23,7 @@ main { flex: 1; display: flex; flex-direction: column; justify-content: flex-sta
 .undo-card { font-size: 21px; }
 .suspend-card { font-size: 23px; font-weight: 300; }
 .report-card { font-size: 16px; font-weight: 600; }
-.undo-card:disabled { opacity: .35; cursor: default; }
+.card-action:disabled { opacity: .35; cursor: default; }
 .card[aria-disabled="true"] { cursor: default; }
 .card:focus:not(:focus-visible) { outline: none; }
 .front { display: block; font-size: clamp(36px, 5.4vw, 66px); font-weight: 400; letter-spacing: -.06em; line-height: 1.2; overflow-wrap: anywhere; }
@@ -32,9 +32,11 @@ main { flex: 1; display: flex; flex-direction: column; justify-content: flex-sta
 .example { display: block; max-width: 620px; margin-top: 22px; color: var(--muted); font-size: clamp(16px, 1.5vw, 18px); line-height: 1.7; text-wrap: pretty; font-style: italic; }
 .answer-rule { width: 40px; height: 1px; background: #41443f; margin: 28px 0 24px; }
 .word-answer { color: var(--accent); font-size: 30px; letter-spacing: -.04em; }
-.controls { min-height: 108px; margin-top: 46px; }
+.controls { min-height: 51px; margin-top: 46px; }
 .ratings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 360px; margin: 0 auto; gap: 10px; animation: appear 160ms ease-out; }
 .ratings[hidden] { display: grid !important; visibility: hidden; }
+.answer[hidden] { display: flex !important; visibility: hidden; }
+.reveal-cue[hidden] { display: block !important; visibility: hidden; }
 .rating { display: flex; flex-direction: column; justify-content: center; gap: 8px; align-items: center; background: transparent; color: #c2c4bd; width: 100%; min-height: 51px; padding: 13px 17px; border: 1px solid #444740; border-radius: 6px; cursor: pointer; transition: background 130ms, border-color 130ms; font-size: 16px; }
 footer { color: var(--muted); font-size: 12px; line-height: 1.5; }
 .local-note { display: inline-flex; align-items: center; gap: 8px; }
@@ -94,10 +96,11 @@ main.can-reveal { cursor: pointer; }
 #daily-settings label { font-size: 16px; }
 .limit-controls { display: flex; align-items: center; gap: 20px; }
 .limit-controls input { width: 90px; min-height: 44px; padding: 10px; border: 1px solid #444740; border-radius: 6px; background: transparent; color: inherit; font: inherit; }
-.direction-setting { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.direction-setting { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 36px; }
 .direction-setting input { width: 18px; height: 18px; accent-color: #d4d7d1; }
 .direction-setting p { flex-basis: 100%; margin: 8px 0 0; }
 #limit-status:empty { display: none; }
+#direction-status:empty { display: none; }
 
 .settings-panel .reset-progress { margin-top: 20px; color: #c49b8b; }
 .settings-panel .reset-progress:hover { color: #e6b78e; }

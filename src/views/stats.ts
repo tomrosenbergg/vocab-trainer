@@ -19,7 +19,7 @@ export const cardsMarkup = `
     <section class="words" aria-label="Card browser">
       <div class="word-browser">
         <div class="word-table" aria-label="Vocabulary">
-          <div id="word-list" role="list"></div>
+          <div id="word-list" role="group" aria-label="Words"></div>
         </div>
         <aside class="word-detail" id="word-detail" aria-labelledby="word-detail-title">
           <h3 id="word-detail-title">Choose a word</h3>
@@ -28,11 +28,13 @@ export const cardsMarkup = `
           <p class="detail-example" id="word-detail-example"></p>
         </aside>
         <div id="card-context-menu" class="card-context-menu" role="menu" hidden><button id="suspend-selected" type="button" role="menuitem">Suspend selected</button></div>
+      </div>
     </section>
   </section>`;
 
 let words: WordSummary[] = [];
 let selectedWord: string | null = null;
+let selectionAnchor: string | null = null;
 let selectedWords = new Set<string>();
 let currentDeck: StudyCard[] = [];
 
@@ -41,6 +43,7 @@ function formatDate(value: string | null): string {
 }
 
 function renderWordList(): void {
+  const focusedWord = document.activeElement instanceof HTMLElement ? document.activeElement.dataset.word : undefined;
   const fragment = document.createDocumentFragment();
   for (const item of words) {
     const row = document.createElement('button');
@@ -51,9 +54,14 @@ function renderWordList(): void {
     row.dataset.word = item.word;
     row.textContent = item.word;
     row.setAttribute('aria-label', item.suspended ? `${item.word}, suspended` : item.word);
+    row.setAttribute('aria-pressed', String(selectedWords.has(item.word)));
     fragment.append(row);
   }
   el('word-list').replaceChildren(fragment);
+  if (focusedWord) {
+    const row = Array.from(el('word-list').querySelectorAll<HTMLButtonElement>('button')).find((button) => button.dataset.word === focusedWord);
+    row?.focus({ preventScroll: true });
+  }
   renderWordDetail();
 }
 
@@ -76,8 +84,8 @@ export function setupWordBrowser(onSuspend: (words: string[], suspended: boolean
     const row = event.target instanceof Element ? event.target.closest<HTMLElement>('.word-row[data-word]') : null;
     if (!row?.dataset.word) return;
     const index = words.findIndex((word) => word.word === row.dataset.word);
-    if (event.shiftKey && selectedWord) {
-      const anchor = words.findIndex((word) => word.word === selectedWord);
+    if (event.shiftKey && selectionAnchor) {
+      const anchor = words.findIndex((word) => word.word === selectionAnchor);
       if (anchor >= 0 && index >= 0) {
         const [from, to] = anchor < index ? [anchor, index] : [index, anchor];
         selectedWords = new Set(words.slice(from, to + 1).map((word) => word.word));
@@ -85,6 +93,7 @@ export function setupWordBrowser(onSuspend: (words: string[], suspended: boolean
     } else if (event.metaKey || event.ctrlKey) {
       if (selectedWords.has(row.dataset.word)) selectedWords.delete(row.dataset.word); else selectedWords.add(row.dataset.word);
     } else selectedWords = new Set([row.dataset.word]);
+    if (!event.shiftKey) selectionAnchor = row.dataset.word;
     selectedWord = row.dataset.word;
     renderWordList();
   });
@@ -93,13 +102,16 @@ export function setupWordBrowser(onSuspend: (words: string[], suspended: boolean
     event.preventDefault();
     const row = event.target instanceof Element ? event.target.closest<HTMLElement>('.word-row[data-word]') : null;
     if (!row?.dataset.word) return;
-    if (!selectedWords.has(row.dataset.word)) { selectedWords = new Set([row.dataset.word]); selectedWord = row.dataset.word; renderWordList(); }
+    if (!selectedWords.has(row.dataset.word)) { selectedWords = new Set([row.dataset.word]); selectionAnchor = row.dataset.word; }
+    selectedWord = row.dataset.word;
+    renderWordList();
     const chosen = words.filter((word) => selectedWords.has(word.word));
     const allSuspended = chosen.length > 0 && chosen.every((word) => word.suspended);
     el<HTMLButtonElement>('suspend-selected').textContent = allSuspended ? 'Resume selected' : 'Suspend selected';
     menu.style.left = `${Math.min(event.clientX, window.innerWidth - 180)}px`;
     menu.style.top = `${Math.min(event.clientY, window.innerHeight - 52)}px`;
     menu.hidden = false;
+    el('suspend-selected').focus({ preventScroll: true });
   });
   el('suspend-selected').addEventListener('click', () => {
     const chosen = words.filter((word) => selectedWords.has(word.word));
@@ -109,6 +121,7 @@ export function setupWordBrowser(onSuspend: (words: string[], suspended: boolean
   });
   document.addEventListener('click', (event) => { if (!(event.target instanceof Element && event.target.closest('#card-context-menu'))) menu.hidden = true; });
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') menu.hidden = true; });
+  document.querySelector('.word-table')!.addEventListener('scroll', () => { menu.hidden = true; });
 }
 
 export function renderActivityView(progress: Progress, now = new Date()): void {
@@ -134,6 +147,7 @@ export function renderCardsView(deck: StudyCard[], progress: Progress): void {
   currentDeck = deck;
   words = wordSummaries(deck, progress);
   if (!selectedWord || !words.some((word) => word.word === selectedWord)) selectedWord = words[0]?.word ?? null;
+  if (!selectionAnchor || !words.some((word) => word.word === selectionAnchor)) selectionAnchor = selectedWord;
   selectedWords = new Set([...selectedWords].filter((word) => words.some((item) => item.word === word)));
   if (selectedWord && !selectedWords.size) selectedWords.add(selectedWord);
   renderWordList();

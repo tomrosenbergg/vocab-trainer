@@ -6,7 +6,7 @@ import { practiceMarkup, renderPracticeCard, revealPracticeCard } from './views/
 import { settingsMarkup } from './views/settings.ts';
 import { cardsMarkup, renderActivityView, renderCardsView, setupWordBrowser } from './views/stats.ts';
 import {
-  createDeck, dailyAllowance, isBuried, remainingCardCounts,
+  createDeck, dailyAllowance, isBuried, isSuspended, remainingCardCounts,
   nextCard, rateCard, readProgress, newProgress,
   STORAGE_KEY, DAILY_NEW_CARDS, setNewCardsPerDay, setBothDirections, setWordSuspended,
   type Answer, type Progress, type StudyCard,
@@ -28,9 +28,16 @@ app.innerHTML = `
   </div>`;
 
 setupWordBrowser((words, suspended) => {
-  for (const word of words) progress = setWordSuspended(progress, word, suspended);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
-  renderCardsView(deck, progress);
+  if (failed) return;
+  try {
+    let updated = readProgress(localStorage);
+    for (const word of words) updated = setWordSuspended(updated, word, suspended);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    progress = updated;
+    deck = createDeck(csv, progress.seed);
+    undoStack.length = 0;
+    render();
+  } catch (error) { fail(error); }
 });
 el('open-stats').setAttribute('aria-label', 'Cards');
 
@@ -51,6 +58,7 @@ function fail(error: unknown) {
   el<HTMLButtonElement>('card').disabled = true;
   for (const answer of ANSWERS) el<HTMLButtonElement>(answer).disabled = true;
   el<HTMLButtonElement>('suspend-card').disabled = true;
+  el<HTMLButtonElement>('undo-card').disabled = true;
   document.querySelector('.local-note')!.textContent = 'progress not saved';
 }
 
@@ -67,10 +75,9 @@ function render() {
   el('card').setAttribute('aria-disabled', 'false');
   current = nextCard(deck, progress, now);
   const undoButton = el<HTMLButtonElement>('undo-card');
-  undoButton.hidden = !current;
-  undoButton.disabled = undoStack.length === 0;
-  el<HTMLButtonElement>('suspend-card').hidden = !current;
-  el<HTMLButtonElement>('report-card').hidden = !current;
+  undoButton.disabled = failed || undoStack.length === 0;
+  el<HTMLButtonElement>('suspend-card').disabled = failed || !current;
+  el<HTMLButtonElement>('report-card').disabled = !current;
   (document.querySelector('.study') as HTMLElement).hidden = !current;
   el('rest').hidden = Boolean(current);
   el('reveal-cue').hidden = !current || Object.keys(progress.cards).length >= 3;
@@ -104,10 +111,10 @@ function rate(answer: Answer) {
   try {
     // Read again before writing so another tab's reviews aren't overwritten.
     const latest = readProgress(localStorage);
-    if (isBuried(current, latest, new Date()) || latest.cards[current.id]?.last_review !== progress.cards[current.id]?.last_review ||
-        JSON.stringify(latest.daily) !== JSON.stringify(progress.daily)) {
+    if (JSON.stringify(latest) !== JSON.stringify(progress)) {
       undoStack.length = 0;
       progress = latest;
+      deck = createDeck(csv, progress.seed);
       render();
       return;
     }
@@ -124,12 +131,21 @@ function suspendCurrentCard() {
   if (!current || failed) return;
   try {
     const latest = readProgress(localStorage);
+    if (JSON.stringify(latest) !== JSON.stringify(progress)) {
+      undoStack.length = 0;
+      progress = latest;
+      deck = createDeck(csv, progress.seed);
+      render();
+      return;
+    }
+    const word = current.word;
     const updated = setWordSuspended(latest, current.word, true);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     undoStack.push({ before: latest, after: JSON.stringify(updated), cardId: current.id });
     progress = updated;
-    el('announcement').textContent = `${current.word} suspended. Press Command-Z to undo.`;
     render();
+    el('announcement').textContent = `${word} suspended. Use Undo to restore it.`;
+    el(current ? 'card' : 'rest-title').focus({ preventScroll: true });
   } catch (error) { fail(error); }
 }
 
@@ -145,14 +161,17 @@ function undoAnswer() {
     render();
     // Return to the exact graded card, even when the queue's ordering has changed.
     const card = deck.find((item) => item.id === cardId);
-    if (card && !isBuried(card, progress, new Date())) {
+    if (card && !isSuspended(card, progress) && (progress.bothDirections || card.direction === 'meaning') && !isBuried(card, progress, new Date())) {
       current = card;
       showCurrentCard();
       reveal();
+      el<HTMLButtonElement>('suspend-card').disabled = false;
+      el<HTMLButtonElement>('report-card').disabled = false;
     }
     el(current ? 'card' : 'rest-title').focus({ preventScroll: true });
   } catch (error) {
     undoStack.length = 0;
+    el<HTMLButtonElement>('undo-card').disabled = true;
     el('announcement').textContent = error instanceof Error ? error.message : 'Could not undo answer.';
   }
 }
@@ -267,6 +286,7 @@ el('daily-limit').addEventListener('blur', () => {
 });
 el('both-directions').addEventListener('change', () => {
   if (failed) return;
+  el('direction-status').textContent = '';
   try {
     const latest = readProgress(localStorage);
     const updated = setBothDirections(latest, el<HTMLInputElement>('both-directions').checked);
@@ -275,6 +295,7 @@ el('both-directions').addEventListener('change', () => {
     undoStack.length = 0;
     render();
   } catch (error) {
+    el<HTMLInputElement>('both-directions').checked = progress.bothDirections === true;
     el('direction-status').textContent = error instanceof Error ? error.message : 'Could not save. Please try again.';
   }
 });
@@ -290,6 +311,7 @@ document.addEventListener('keydown', (event) => {
     return;
   }
   if (event.altKey || event.ctrlKey || event.metaKey) return;
+  if (event.code === 'Space' && event.target instanceof Element && event.target.closest('button:not(#card)')) return;
   if (!current) return;
   if (event.code === 'Space') { event.preventDefault(); if (!event.repeat) reveal(); }
   const answer = /^[1-2]$/.test(event.key) ? ANSWERS[Number(event.key) - 1] : undefined;

@@ -232,8 +232,8 @@ test('undo restores new-card allowance, sibling availability and FSRS state', ()
   assert.equal(isBuried(pair[1], restored, now), false);
   const repeated = rateCard(after, pair[0], 'good', now);
   assert.deepEqual(restoreAnswer({ before: after, after: JSON.stringify(repeated), cardId: pair[0].id }, repeated), after);
-  assert.throws(() => restoreAnswer(undo, repeated), /another tab/);
-  assert.throws(() => restoreAnswer(undo, newProgress(now)), /another tab/);
+  assert.throws(() => restoreAnswer(undo, repeated), /Progress has changed/);
+  assert.throws(() => restoreAnswer(undo, newProgress(now)), /Progress has changed/);
 });
 
 
@@ -265,6 +265,46 @@ test('suspending a word removes both directions until resumed', () => {
   assert.deepEqual(remainingCardCounts(deck, progress, now), { newCards: 0, reviews: 0, learning: 0 });
   progress = setWordSuspended(progress, 'mitigate', false);
   assert.equal(nextCard(deck, progress, now)?.word, 'mitigate');
+});
+
+test('direction toggle preserves schedules, history and sibling burying across reloads', () => {
+  const initial = newProgress(now);
+  assert.equal(initial.bothDirections, false);
+  const studied = rateCard(setBothDirections(initial, true), pair[1], 'again', now);
+  const disabled = setBothDirections(studied, false);
+  assert.equal(nextCard(pair, disabled, now), null);
+  assert.deepEqual(remainingCardCounts(pair, disabled, now), { newCards: 0, reviews: 0, learning: 0 });
+  assert.deepEqual(disabled.cards, studied.cards);
+  assert.deepEqual(disabled.reviews, studied.reviews);
+  assert.deepEqual(disabled.daily, studied.daily);
+  const reloaded = importBackup(exportBackup(disabled));
+  assert.equal(reloaded.bothDirections, false);
+  assert.equal(nextCard(pair, setBothDirections(reloaded, true), now)?.id, pair[1].id);
+  const { bothDirections: _setting, ...legacy } = studied;
+  assert.equal(parseProgress(JSON.stringify(legacy)).bothDirections, true);
+  assert.throws(() => parseProgress(JSON.stringify({ ...studied, bothDirections: 'yes' })), /direction/);
+});
+
+test('due siblings count once and take precedence over unseen reverse cards', () => {
+  let progress = setBothDirections(newProgress(now), true);
+  progress = rateCard(progress, pair[0], 'again', now);
+  // Move to the next study day so the sibling is eligible again.
+  progress.cards[pair[0].id].due = new Date(tomorrow.getTime() + 600000).toISOString();
+  assert.equal(nextCard(pair, progress, tomorrow)?.id, pair[0].id);
+  assert.deepEqual(remainingCardCounts(pair, progress, tomorrow), { newCards: 0, reviews: 0, learning: 1 });
+  progress.cards[pair[1].id] = { ...progress.cards[pair[0].id], state: 2, due: new Date(tomorrow.getTime() + 1200000).toISOString() };
+  assert.deepEqual(remainingCardCounts(pair, progress, tomorrow), { newCards: 0, reviews: 0, learning: 1 });
+  assert.equal(nextCard(pair, progress, tomorrow)?.id, pair[0].id);
+});
+
+test('undo reverses suspension followed by rating without losing historical progress', () => {
+  const initial = newProgress(now);
+  const suspended = setWordSuspended(initial, pair[0].word, true);
+  const restored = restoreAnswer({ before: initial, after: JSON.stringify(suspended), cardId: pair[0].id }, suspended);
+  assert.deepEqual(restored, initial);
+  assert.equal(nextCard(pair, restored, now)?.id, pair[0].id);
+  const rated = rateCard(restored, pair[0], 'good', now);
+  assert.deepEqual(restoreAnswer({ before: restored, after: JSON.stringify(rated), cardId: pair[0].id }, rated), initial);
 });
 
 

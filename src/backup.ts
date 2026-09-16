@@ -14,6 +14,6 @@ export function importBackup(raw: string): Progress {
 
 export type Undo = { before: Progress; after: string; cardId: string };
 export function restoreAnswer(undo: Undo, latest: Progress): Progress {
-  if (JSON.stringify(latest) !== undo.after) throw new Error('Progress changed in another tab. That answer can no longer be undone.');
+  if (JSON.stringify(latest) !== undo.after) throw new Error('Progress has changed. That action can no longer be undone.');
   return undo.before;
 }

@@ -209,13 +209,25 @@ export function remainingCards(deck: StudyCard[], progress: Progress, now: Date)
   return counts.newCards + counts.reviews + counts.learning;
 }
 
+// Only the first due direction can be studied before sibling burying takes effect.
+function dueCards(eligible: StudyCard[], progress: Progress, now: Date): StudyCard[] {
+  const end = nextStudyDay(now).getTime();
+  const seen = new Set<string>();
+  return eligible.filter((card) => progress.cards[card.id] && Date.parse(progress.cards[card.id].due) < end)
+    .sort((a, b) => Date.parse(progress.cards[a.id].due) - Date.parse(progress.cards[b.id].due))
+    .filter((card) => {
+      const key = wordKey(card);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
 export function remainingCardCounts(deck: StudyCard[], progress: Progress, now: Date): { newCards: number; reviews: number; learning: number } {
   const eligible = deck.filter((card) => directionEnabled(card, progress) && !isSuspended(card, progress) && !isBuried(card, progress, now));
-  const end = nextStudyDay(now).getTime();
-  const reviews = new Set(eligible.filter((card) => progress.cards[card.id] && progress.cards[card.id].state === 2 &&
-    Date.parse(progress.cards[card.id].due) < end).map(wordKey));
-  const learning = new Set(eligible.filter((card) => progress.cards[card.id] && progress.cards[card.id].state !== 2 &&
-    Date.parse(progress.cards[card.id].due) < end).map(wordKey));
+  const due = dueCards(eligible, progress, now);
+  const reviews = new Set(due.filter((card) => progress.cards[card.id].state === 2).map(wordKey));
+  const learning = new Set(due.filter((card) => progress.cards[card.id].state !== 2).map(wordKey));
   const scheduledWords = new Set([...reviews, ...learning]);
   const unseen = new Set(eligible.filter((card) => !progress.cards[card.id] &&
     !scheduledWords.has(wordKey(card))).map(wordKey));
@@ -225,14 +237,14 @@ export function remainingCardCounts(deck: StudyCard[], progress: Progress, now: 
 
 export function nextCard(deck: StudyCard[], progress: Progress, now: Date): StudyCard | null {
   const eligible = deck.filter((card) => directionEnabled(card, progress) && !isSuspended(card, progress) && !isBuried(card, progress, now));
-  const due = eligible.filter((card) => progress.cards[card.id] && Date.parse(progress.cards[card.id].due) < nextStudyDay(now).getTime())
-    .sort((a, b) => Date.parse(progress.cards[a.id].due) - Date.parse(progress.cards[b.id].due));
+  const due = dueCards(eligible, progress, now);
   const ready = due.filter((card) => Date.parse(progress.cards[card.id].due) <= now.getTime());
   if (ready.length) return ready[0];
   const review = due.find((card) => progress.cards[card.id].state === 2);
   if (review) return review;
   const daily = dailyAllowance(progress, now);
-  const unseen = daily.introduced.length < daily.limit ? eligible.filter((card) => !progress.cards[card.id]) : [];
+  const dueWords = new Set(due.map(wordKey));
+  const unseen = daily.introduced.length < daily.limit ? eligible.filter((card) => !progress.cards[card.id] && !dueWords.has(wordKey(card))) : [];
   return unseen.find((card) => card.word !== progress.lastWord) ?? unseen[0] ?? due[0] ?? null;
 }
 
