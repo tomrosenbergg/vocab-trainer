@@ -1,6 +1,6 @@
 # Bird Brain
 
-A minimal, browser-only SAT vocabulary trainer. Click anywhere in the main study area to reveal the answer, then choose **Fail** or **Pass**. There is no login, backend, analytics, or external font request.
+A minimal, browser-only SAT vocabulary trainer. Click anywhere in the main study area to reveal the answer, then choose **Again** or **Good**. There is no login, backend, analytics, or external font request.
 
 ## Run locally
 
@@ -30,7 +30,7 @@ Each word has a word → definition card and a definition → word card, with in
 
 After reviewing a card, its sibling (the opposite direction of the same word) is buried until the next local 4 a.m.. This applies to new, learning, and due review siblings, survives reloads. The reviewed card can still repeat later today if FSRS schedules it. Burying is a queue filter based on the sibling’s last-review date: it never changes the buried card’s FSRS state or due date. When both directions are due, reviewing the first defers the other to another day.
 
-All reviews scheduled before the next 4 a.m. are available in today's session. Already-due cards come first, followed by today's future review cards, new cards, and future learning repeats in due-time order. Short learning steps can therefore be completed without waiting for the clock. Fail may require more repetitions before the session finishes. FSRS receives the actual review time and retains its own due dates.
+All reviews scheduled before the next 4 a.m. are available in today's session. Already-due cards come first, followed by today's future review cards, new cards, and future learning repeats in due-time order. Short learning steps can therefore be completed without waiting for the clock. Again may require more repetitions before the session finishes. FSRS receives the actual review time and retains its own due dates.
 
 Once today's work is complete, the app waits until 4 a.m. for the next allowance and reviews. Missed days do not accumulate allowance. The timezone comes from the device/browser, not IP geolocation. Calendar-based boundaries respect daylight saving time. An idle open tab refreshes within 15 seconds of rollover.
 
@@ -49,8 +49,8 @@ Definition edits retain scheduling history. New or renamed words get new card ID
 
 Uses `ts-fsrs` at 90% requested retention. The two choices map to FSRS grades:
 
-- **Fail** → Again: could not recall the answer before revealing it.
-- **Pass** → Good: recalled the answer before revealing it.
+- **Again**: could not recall the answer before revealing it.
+- **Good**: recalled the answer before revealing it.
 
 Both buttons share the same styling. Review intervals are hidden; FSRS schedules cards in the background. Existing schedules are preserved; future answers use this mapping.
 
@@ -83,8 +83,8 @@ Profiles are `consistent`, `casual`, `struggling`, `advanced`, and `lapsed`. Opt
 ## Keyboard
 
 - **Space**: reveal answer
-- **1**: Fail
-- **2**: Pass
+- **1**: Again
+- **2**: Good
 - **Tab / Enter**: native button navigation and activation
 
 ## Structure
@@ -112,4 +112,6 @@ The footer shows “click anywhere to reveal” until three distinct cards have 
 
 Settings includes **New cards per day**, defaulting to 10. Entering a higher limit makes additional cards available immediately; lowering it never removes completed study or due reviews. Valid whole numbers autosave as you type, with no Save button. The limit persists across days and backups. Zero pauses new cards. Changing this setting clears session undo so it cannot restore an old limit.
 
-The footer separates today’s queue into **new**, **reviews**, and **learning** cards. Learning includes cards in FSRS learning or relearning steps, including cards recently marked Fail.
+Cards default to word → definition. **Test cards in both directions** enables the reverse definition → word cards as well. Changing this setting only changes which directions are eligible for practice; existing schedules and review history are preserved.
+
+The footer separates today’s queue into **new**, **reviews**, and **learning** cards. Learning includes cards in FSRS learning or relearning steps, including cards recently marked Again.

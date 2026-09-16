@@ -4,7 +4,7 @@ import { simulateHistory } from './simulation.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { setNewCardsPerDay, setWordSuspended, remainingCards, remainingCardCounts, createDeck, dailyAllowance, isBuried, localDay, newProgress, nextStudyDay, nextCard, parseProgress, rateCard, readProgress } from './study.ts';
+import { setNewCardsPerDay, setBothDirections, setWordSuspended, remainingCards, remainingCardCounts, createDeck, dailyAllowance, isBuried, localDay, newProgress, nextStudyDay, nextCard, parseProgress, rateCard, readProgress } from './study.ts';
 
 const now = new Date(2026, 8, 14, 12);
 const tomorrow = new Date(2026, 8, 15, 4, 0);
@@ -50,7 +50,7 @@ test('reviewing either direction buries only its sibling until local 4am', () =>
   for (const index of [0, 1]) {
     const reviewed = pair[index];
     const sibling = pair[1 - index];
-    const progress = rateCard(newProgress(now), reviewed, 'again', now);
+    const progress = rateCard(setBothDirections(newProgress(now), true), reviewed, 'again', now);
     assert.equal(isBuried(sibling, progress, now), true);
     assert.equal(isBuried(reviewed, progress, now), false);
     assert.equal(nextCard(pair, progress, now)?.id, reviewed.id);
@@ -78,7 +78,7 @@ test('same-card Again repeats stay available and do not spend a second new-card 
 test('due siblings are buried without changing their FSRS state or due date', () => {
   const priorDay = new Date(2026, 8, 12, 12);
   const nextDay = new Date(2026, 8, 13, 12);
-  let progress = rateCard(newProgress(priorDay), pair[0], 'good', priorDay);
+  let progress = rateCard(setBothDirections(newProgress(priorDay), true), pair[0], 'good', priorDay);
   progress = rateCard(progress, pair[1], 'good', nextDay);
   const siblingBefore = { ...progress.cards[pair[1].id] };
   progress = rateCard(progress, pair[0], 'good', now);

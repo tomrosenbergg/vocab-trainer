@@ -12,6 +12,7 @@ Ideas to revisit after the core study loop has had more time in the wild. These 
 - Add expandable direction-level and technical FSRS details to the searchable Words list if users need them.
 - Add an optional “skip this word” action that suspends both directions and can be restored from Settings.
 - Add pronunciation audio.
+- Add a short first-session onboarding flow that explains reveal, rating, active recall, spaced repetition, and suspending cards, then fades away once the interaction is familiar.
 - Show a tutor CTA after users complete several separate study days; keep a smaller version in Settings.
 
 ## Accounts and sync

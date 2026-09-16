@@ -23,6 +23,7 @@ export type ReviewEvent = {
 export type Progress = {
   version: 1;
   newCardsPerDay?: number;
+  bothDirections?: boolean;
   seed: number;
   cards: Record<string, SavedCard>;
   reviews: ReviewEvent[];
@@ -57,13 +58,16 @@ export function nextStudyDay(now: Date): Date {
 }
 
 export function newProgress(now = new Date()): Progress {
-  return { version: 1, seed: Math.floor(Math.random() * 0xffffffff), cards: {}, reviews: [], suspended: [], day: localDay(now), today: 0, lastWord: null,
+  return { version: 1, seed: Math.floor(Math.random() * 0xffffffff), cards: {}, reviews: [], suspended: [], bothDirections: false, day: localDay(now), today: 0, lastWord: null,
     daily: { unit: 'cards', day: localDay(now), introduced: [], extra: 0 } };
 }
 
 const wordKey = (card: StudyCard) => encodeURIComponent(card.word.toLowerCase());
 const wordKeyFromWord = (word: string) => encodeURIComponent(word.toLowerCase());
 export function isSuspended(card: StudyCard, progress: Progress): boolean { return progress.suspended.includes(wordKey(card)); }
+function directionEnabled(card: StudyCard, progress: Progress): boolean {
+  return progress.bothDirections === true || card.direction === 'meaning';
+}
 export function setWordSuspended(progress: Progress, word: string, suspended: boolean): Progress {
   const key = wordKeyFromWord(word);
   const values = new Set(progress.suspended);
@@ -78,6 +82,9 @@ export function dailyAllowance(progress: Progress, now: Date) {
 export function setNewCardsPerDay(progress: Progress, limit: number): Progress {
   if (!Number.isSafeInteger(limit) || limit < 0) throw new Error('Enter a whole number of 0 or more.');
   return { ...progress, newCardsPerDay: limit, daily: { ...progress.daily, extra: 0 } };
+}
+export function setBothDirections(progress: Progress, enabled: boolean): Progress {
+  return { ...progress, bothDirections: enabled };
 }
 
 export function isBuried(card: StudyCard, progress: Progress, now: Date): boolean {
@@ -140,6 +147,11 @@ export function parseProgress(raw: string, now = new Date()): Progress {
   if (data.newCardsPerDay !== undefined && (!Number.isSafeInteger(data.newCardsPerDay) || data.newCardsPerDay < 0)) {
     throw new Error('Saved new-card limit could not be read.');
   }
+  if (data.bothDirections !== undefined && typeof data.bothDirections !== 'boolean') {
+    throw new Error('Saved card-direction setting could not be read.');
+  }
+  // Existing users previously practiced both directions; preserve that behavior on upgrade.
+  data.bothDirections ??= true;
   // Progress saved before review history existed starts with an empty event log.
   data.reviews ??= [];
   data.suspended ??= [];
@@ -198,7 +210,7 @@ export function remainingCards(deck: StudyCard[], progress: Progress, now: Date)
 }
 
 export function remainingCardCounts(deck: StudyCard[], progress: Progress, now: Date): { newCards: number; reviews: number; learning: number } {
-  const eligible = deck.filter((card) => !isSuspended(card, progress) && !isBuried(card, progress, now));
+  const eligible = deck.filter((card) => directionEnabled(card, progress) && !isSuspended(card, progress) && !isBuried(card, progress, now));
   const end = nextStudyDay(now).getTime();
   const reviews = new Set(eligible.filter((card) => progress.cards[card.id] && progress.cards[card.id].state === 2 &&
     Date.parse(progress.cards[card.id].due) < end).map(wordKey));
@@ -212,7 +224,7 @@ export function remainingCardCounts(deck: StudyCard[], progress: Progress, now: 
 }
 
 export function nextCard(deck: StudyCard[], progress: Progress, now: Date): StudyCard | null {
-  const eligible = deck.filter((card) => !isSuspended(card, progress) && !isBuried(card, progress, now));
+  const eligible = deck.filter((card) => directionEnabled(card, progress) && !isSuspended(card, progress) && !isBuried(card, progress, now));
   const due = eligible.filter((card) => progress.cards[card.id] && Date.parse(progress.cards[card.id].due) < nextStudyDay(now).getTime())
     .sort((a, b) => Date.parse(progress.cards[a.id].due) - Date.parse(progress.cards[b.id].due));
   const ready = due.filter((card) => Date.parse(progress.cards[card.id].due) <= now.getTime());

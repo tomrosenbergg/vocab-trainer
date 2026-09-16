@@ -11,8 +11,13 @@ export const practiceMarkup = `
       <p class="reveal-cue" id="reveal-cue" hidden>click anywhere to reveal</p>
       <div class="controls">
         <div class="ratings" id="ratings" hidden>
-          <button class="rating" id="again" type="button" aria-keyshortcuts="1"><span>Fail</span></button>
-          <button class="rating" id="good" type="button" aria-keyshortcuts="2"><span>Pass</span></button>
+          <button class="rating" id="again" type="button" aria-keyshortcuts="1"><span>Again</span></button>
+          <button class="rating" id="good" type="button" aria-keyshortcuts="2"><span>Good</span></button>
+        </div>
+        <div class="card-actions" aria-label="Card actions">
+          <button class="card-action undo-card" id="undo-card" type="button" aria-label="Undo last action" title="Undo last action" data-tooltip="Undo">↶</button>
+          <button class="card-action suspend-card" id="suspend-card" type="button" aria-label="Suspend card" title="Suspend card" data-tooltip="Suspend">×</button>
+          <button class="card-action report-card" id="report-card" type="button" aria-label="Report an issue" title="Report an issue" data-tooltip="Report">!</button>
         </div>
       </div>
     </section>
@@ -38,5 +43,5 @@ export function revealPracticeCard(card: StudyCard): void {
   el('ratings').hidden = false;
   el('card').setAttribute('aria-disabled', 'true');
   el('card').setAttribute('aria-label', `${card.front}. ${card.back}. Example: ${card.example}`);
-  el('announcement').textContent = `${card.back}. Example: ${card.example} Choose Fail with 1 or Pass with 2.`;
+  el('announcement').textContent = `${card.back}. Example: ${card.example} Choose Again with 1 or Good with 2.`;
 }

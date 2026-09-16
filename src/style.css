@@ -12,8 +12,18 @@ header { min-height: 32px; }
 .brand { display: inline-flex; align-items: center; gap: 13px; color: #b9bcb7; text-decoration: none; font-size: 18px; letter-spacing: -.7px; }
 .brand-mark { font-size: 27px; line-height: 1; color: var(--accent); font-weight: 600; letter-spacing: -4px; margin-right: 4px; }
 main { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; padding: clamp(64px, 12svh, 140px) 0 64px; }
-.study { width: min(100%, 820px); text-align: center; }
-.card { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; width: 100%; min-height: 190px; padding: 20px 24px; border: none; color: inherit; background: none; cursor: pointer; }
+.study { position: relative; width: min(100%, 820px); text-align: center; }
+.card { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; width: 100%; min-height: clamp(300px, 38svh, 420px); padding: 20px 24px; border: none; color: inherit; background: none; cursor: pointer; }
+.card-actions { display: flex; justify-content: center; gap: 10px; margin-top: 18px; }
+.card-action { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 1px solid #343735; border-radius: 50%; color: var(--muted); background: transparent; line-height: 1; cursor: pointer; }
+.card-action:hover:not(:disabled), .card-action:focus-visible:not(:disabled) { border-color: #4a4e49; color: #e0e1de; }
+.card-action { position: relative; }
+.card-action::after { position: absolute; bottom: calc(100% + 8px); left: 50%; padding: 4px 7px; border: 1px solid #343735; border-radius: 4px; color: #d3d5d0; background: #20231f; content: attr(data-tooltip); font-size: 11px; line-height: 1; white-space: nowrap; opacity: 0; pointer-events: none; transform: translate(-50%, 3px); transition: opacity 120ms ease, transform 120ms ease; }
+.card-action:hover::after, .card-action:focus-visible::after { opacity: 1; transform: translate(-50%, 0); }
+.undo-card { font-size: 21px; }
+.suspend-card { font-size: 23px; font-weight: 300; }
+.report-card { font-size: 16px; font-weight: 600; }
+.undo-card:disabled { opacity: .35; cursor: default; }
 .card[aria-disabled="true"] { cursor: default; }
 .card:focus:not(:focus-visible) { outline: none; }
 .front { display: block; font-size: clamp(36px, 5.4vw, 66px); font-weight: 400; letter-spacing: -.06em; line-height: 1.2; overflow-wrap: anywhere; }
@@ -24,6 +34,7 @@ main { flex: 1; display: flex; flex-direction: column; justify-content: flex-sta
 .word-answer { color: var(--accent); font-size: 30px; letter-spacing: -.04em; }
 .controls { min-height: 108px; margin-top: 46px; }
 .ratings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 360px; margin: 0 auto; gap: 10px; animation: appear 160ms ease-out; }
+.ratings[hidden] { display: grid !important; visibility: hidden; }
 .rating { display: flex; flex-direction: column; justify-content: center; gap: 8px; align-items: center; background: transparent; color: #c2c4bd; width: 100%; min-height: 51px; padding: 13px 17px; border: 1px solid #444740; border-radius: 6px; cursor: pointer; transition: background 130ms, border-color 130ms; font-size: 16px; }
 footer { color: var(--muted); font-size: 12px; line-height: 1.5; }
 .local-note { display: inline-flex; align-items: center; gap: 8px; }
@@ -39,7 +50,7 @@ footer { color: var(--muted); font-size: 12px; line-height: 1.5; }
   .shell { padding: 24px 22px; }
   .brand { font-size: 16px; gap: 9px; }
   main { padding: clamp(40px, 8svh, 72px) 0 40px; }
-  .card { padding: 10px 2px; min-height: 170px; }
+  .card { padding: 10px 2px; min-height: clamp(250px, 34svh, 360px); }
   .controls { margin-top: 36px; }
   .ratings { gap: 8px; }
   .rating { padding: 12px 6px; font-size: 14px; }
@@ -83,6 +94,9 @@ main.can-reveal { cursor: pointer; }
 #daily-settings label { font-size: 16px; }
 .limit-controls { display: flex; align-items: center; gap: 20px; }
 .limit-controls input { width: 90px; min-height: 44px; padding: 10px; border: 1px solid #444740; border-radius: 6px; background: transparent; color: inherit; font: inherit; }
+.direction-setting { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.direction-setting input { width: 18px; height: 18px; accent-color: #d4d7d1; }
+.direction-setting p { flex-basis: 100%; margin: 8px 0 0; }
 #limit-status:empty { display: none; }
 
 .settings-panel .reset-progress { margin-top: 20px; color: #c49b8b; }

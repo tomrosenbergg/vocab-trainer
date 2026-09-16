@@ -8,7 +8,7 @@ import { cardsMarkup, renderActivityView, renderCardsView, setupWordBrowser } fr
 import {
   createDeck, dailyAllowance, isBuried, remainingCardCounts,
   nextCard, rateCard, readProgress, newProgress,
-  STORAGE_KEY, DAILY_NEW_CARDS, setNewCardsPerDay, setWordSuspended,
+  STORAGE_KEY, DAILY_NEW_CARDS, setNewCardsPerDay, setBothDirections, setWordSuspended,
   type Answer, type Progress, type StudyCard,
 } from './study.ts';
 
@@ -50,6 +50,7 @@ function fail(error: unknown) {
   el('error').hidden = false;
   el<HTMLButtonElement>('card').disabled = true;
   for (const answer of ANSWERS) el<HTMLButtonElement>(answer).disabled = true;
+  el<HTMLButtonElement>('suspend-card').disabled = true;
   document.querySelector('.local-note')!.textContent = 'progress not saved';
 }
 
@@ -65,11 +66,17 @@ function render() {
   el('remaining').setAttribute('aria-label', `${remaining.newCards} new cards, ${remaining.reviews} reviews, and ${remaining.learning} learning cards remaining today`);
   el('card').setAttribute('aria-disabled', 'false');
   current = nextCard(deck, progress, now);
+  const undoButton = el<HTMLButtonElement>('undo-card');
+  undoButton.hidden = !current;
+  undoButton.disabled = undoStack.length === 0;
+  el<HTMLButtonElement>('suspend-card').hidden = !current;
+  el<HTMLButtonElement>('report-card').hidden = !current;
   (document.querySelector('.study') as HTMLElement).hidden = !current;
   el('rest').hidden = Boolean(current);
   el('reveal-cue').hidden = !current || Object.keys(progress.cards).length >= 3;
   document.querySelector('main')!.classList.toggle('can-reveal', Boolean(current) && !failed);
   el<HTMLInputElement>('daily-limit').value = String(progress.newCardsPerDay ?? DAILY_NEW_CARDS);
+  el<HTMLInputElement>('both-directions').checked = progress.bothDirections === true;
   updateView();
   if (!current) {
     const title = 'You’re done for today.';
@@ -110,6 +117,19 @@ function rate(answer: Answer) {
     progress = updated;
     render();
     el(current ? 'card' : 'rest-title').focus({ preventScroll: true });
+  } catch (error) { fail(error); }
+}
+
+function suspendCurrentCard() {
+  if (!current || failed) return;
+  try {
+    const latest = readProgress(localStorage);
+    const updated = setWordSuspended(latest, current.word, true);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    undoStack.push({ before: latest, after: JSON.stringify(updated), cardId: current.id });
+    progress = updated;
+    el('announcement').textContent = `${current.word} suspended. Press Command-Z to undo.`;
+    render();
   } catch (error) { fail(error); }
 }
 
@@ -170,6 +190,7 @@ el('backup-file').addEventListener('change', async () => {
     failed = false;
     el('error').hidden = true;
     el<HTMLButtonElement>('card').disabled = false;
+    el<HTMLButtonElement>('suspend-card').disabled = false;
     for (const answer of ANSWERS) el<HTMLButtonElement>(answer).disabled = false;
     document.querySelector('.local-note')!.textContent = 'saved in this browser';
     render();
@@ -184,12 +205,19 @@ document.querySelector('main')!.addEventListener('click', (event) => {
   reveal();
 });
 for (const answer of ANSWERS) el(answer).addEventListener('click', () => rate(answer));
+el('suspend-card').addEventListener('click', suspendCurrentCard);
+el('undo-card').addEventListener('click', undoAnswer);
+el('report-card').addEventListener('click', () => {
+  if (!current || failed) return;
+  el('announcement').textContent = 'Issue reporting is coming soon.';
+});
 el('reset-progress').addEventListener('click', () => {
   if (!window.confirm('Reset all study progress in this browser?\n\nThis clears your card history and schedules. Your new-cards-per-day setting is kept. Export a backup first if you want to restore your progress later. This cannot be undone.')) return;
   try {
     const latest = readProgress(localStorage);
     const fresh = newProgress();
     fresh.newCardsPerDay = latest.newCardsPerDay ?? DAILY_NEW_CARDS;
+    fresh.bothDirections = latest.bothDirections === true;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
     window.location.reload();
   } catch (error) { backupError(error); }
@@ -236,6 +264,19 @@ el('daily-limit').addEventListener('input', () => {
 });
 el('daily-limit').addEventListener('blur', () => {
   el<HTMLInputElement>('daily-limit').value = String(progress.newCardsPerDay ?? DAILY_NEW_CARDS);
+});
+el('both-directions').addEventListener('change', () => {
+  if (failed) return;
+  try {
+    const latest = readProgress(localStorage);
+    const updated = setBothDirections(latest, el<HTMLInputElement>('both-directions').checked);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    progress = updated;
+    undoStack.length = 0;
+    render();
+  } catch (error) {
+    el('direction-status').textContent = error instanceof Error ? error.message : 'Could not save. Please try again.';
+  }
 });
 el('open-practice').addEventListener('click', () => { activeView = 'practice'; if (!current) render(); else updateView(); });
 el('open-stats').addEventListener('click', () => { activeView = 'cards'; updateView(); });
