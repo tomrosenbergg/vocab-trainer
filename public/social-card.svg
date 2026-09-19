@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#17191b"/>
+  <rect x="48" y="48" width="1104" height="534" rx="20" fill="none" stroke="#343735" stroke-width="2"/>
+
+  <g transform="translate(104 91) scale(1.15)">
+    <path d="M13 39c0-12 7-22 19-22 11 0 19 8 19 18 0 10-8 17-19 17H21c-5 0-8-5-8-13Z" fill="#dbc478"/>
+    <path d="m48 25 11 5-10 6" fill="#dbc478"/>
+    <circle cx="39" cy="26" r="2.5" fill="#17191b"/>
+    <path d="M23 38c4-4 10-5 15-2" fill="none" stroke="#17191b" stroke-width="3" stroke-linecap="round"/>
+    <path d="M26 51v6m12-6v6" fill="none" stroke="#dbc478" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <text x="190" y="139" fill="#b9bcb7" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="31" letter-spacing="-1">bird brain</text>
+
+  <text x="104" y="315" fill="#e0e1de" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="78" letter-spacing="-4">GRE 1000 words</text>
+  <line x1="104" y1="366" x2="1096" y2="366" stroke="#41443f" stroke-width="2"/>
+  <text x="104" y="437" fill="#90938f" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="28">active recall · spaced repetition</text>
+  <text x="104" y="522" fill="#777b76" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="21">www.bird-brain.xyz</text>
+</svg>

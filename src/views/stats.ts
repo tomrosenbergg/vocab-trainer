@@ -28,7 +28,7 @@ export const cardsMarkup = `
             <div id="word-list" role="group" aria-label="Words"></div>
           </div>
         </div>
-        <aside class="word-detail" id="word-detail" aria-labelledby="word-detail-title">
+        <aside class="word-detail card-surface" id="word-detail" aria-labelledby="word-detail-title">
           <button class="card-action detail-suspend" id="detail-suspend" type="button" aria-label="Suspend card" data-tooltip="Suspend">×</button>
           <h3 id="word-detail-title">Choose a word</h3>
           <p class="detail-definition" id="word-detail-definition"></p>

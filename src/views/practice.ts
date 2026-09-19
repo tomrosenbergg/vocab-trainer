@@ -4,10 +4,15 @@ import type { StudyCard } from '../study.ts';
 export const practiceMarkup = `
   <div id="practice-view" class="app-view">
     <section class="study" aria-label="Vocabulary practice">
-      <button class="card" id="card" type="button">
-        <span class="front" id="front"></span>
-        <span class="answer" id="answer" hidden><span class="answer-rule"></span><span id="back"></span><span class="example" id="example"></span></span>
-      </button>
+      <div class="card-wrap">
+        <div class="card-actions practice-toolbar" aria-label="Card actions">
+          <button class="card-action suspend-card" id="suspend-card" type="button" aria-label="Suspend card" data-tooltip="Suspend">×</button>
+        </div>
+        <button class="card card-surface" id="card" type="button">
+          <span class="front" id="front"></span>
+          <span class="answer" id="answer" hidden><span class="answer-rule"></span><span id="back"></span><span class="example" id="example"></span></span>
+        </button>
+      </div>
       <p class="reveal-cue" id="reveal-cue" hidden>click anywhere to reveal</p>
       <div class="controls">
         <div class="ratings" id="ratings" hidden>
@@ -17,10 +22,6 @@ export const practiceMarkup = `
       </div>
     </section>
     <section class="rest" id="rest" hidden><span class="rest-mark" id="rest-mark" aria-hidden="true">✓</span><h1 id="rest-title" tabindex="-1">You’re done for today.</h1><p id="daily-summary"></p><p id="rest-return">Come back tomorrow.</p></section>
-    <div class="card-actions" aria-label="Card actions">
-      <button class="card-action undo-card" id="undo-card" type="button" aria-label="Undo last action" data-tooltip="Undo">↶</button>
-      <button class="card-action suspend-card" id="suspend-card" type="button" aria-label="Suspend card" data-tooltip="Suspend">×</button>
-    </div>
   </div>`;
 
 export function renderPracticeCard(card: StudyCard): void {

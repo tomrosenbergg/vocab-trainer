@@ -27,7 +27,7 @@ app.innerHTML = `
       <p class="error" id="error" role="alert" hidden></p>
       <span class="sr-only" id="announcement" role="status" aria-live="polite"></span>
     </main>
-    <footer><span class="local-note"><svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14" fill="none"><rect x="3.5" y="7" width="9" height="7" rx="1.5" stroke="currentColor"/><path d="M5.5 7V4.5a2.5 2.5 0 0 1 5 0V7" stroke="currentColor"/></svg> saved in this browser</span><div class="user-messages"><p class="remaining" id="remaining" aria-live="polite" aria-atomic="true"></p></div></footer>
+    <footer><span class="local-note"><svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14" fill="none"><rect x="3.5" y="7" width="9" height="7" rx="1.5" stroke="currentColor"/><path d="M5.5 7V4.5a2.5 2.5 0 0 1 5 0V7" stroke="currentColor"/></svg> saved in this browser</span><div class="keyboard-hints" aria-label="Keyboard shortcuts"><span><kbd>1</kbd> Again</span><span><kbd>2</kbd> Good</span><span><kbd>Space</kbd> Reveal</span><span><kbd id="undo-key">⌘Z</kbd> Undo</span></div><div class="user-messages"><p class="remaining" id="remaining" aria-live="polite" aria-atomic="true"></p></div></footer>
   </div>`;
 
 setupWordBrowser((words, suspended) => {
@@ -43,6 +43,7 @@ setupWordBrowser((words, suspended) => {
   } catch (error) { fail(error); }
 });
 el('open-stats').setAttribute('aria-label', 'Cards');
+el('undo-key').textContent = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘Z' : 'Ctrl Z';
 
 let progress: Progress;
 let deck: StudyCard[] = [];
@@ -61,7 +62,6 @@ function fail(error: unknown) {
   el<HTMLButtonElement>('card').disabled = true;
   for (const answer of ANSWERS) el<HTMLButtonElement>(answer).disabled = true;
   el<HTMLButtonElement>('suspend-card').disabled = true;
-  el<HTMLButtonElement>('undo-card').disabled = true;
   document.querySelector('.local-note')!.textContent = 'progress not saved';
 }
 
@@ -77,8 +77,6 @@ function render() {
   el('remaining').setAttribute('aria-label', `${remaining.newCards} new cards, ${remaining.reviews} reviews, and ${remaining.learning} learning cards remaining today`);
   el('card').setAttribute('aria-disabled', 'false');
   current = nextCard(deck, progress, now);
-  const undoButton = el<HTMLButtonElement>('undo-card');
-  undoButton.disabled = failed || undoStack.length === 0;
   el<HTMLButtonElement>('suspend-card').disabled = failed || !current;
   (document.querySelector('.study') as HTMLElement).hidden = !current;
   el('rest').hidden = Boolean(current);
@@ -183,7 +181,6 @@ function undoAnswer() {
     el(current ? 'card' : 'rest-title').focus({ preventScroll: true });
   } catch (error) {
     undoStack.length = 0;
-    el<HTMLButtonElement>('undo-card').disabled = true;
     el('announcement').textContent = error instanceof Error ? error.message : 'Could not undo answer.';
   }
 }
@@ -237,7 +234,6 @@ document.querySelector('main')!.addEventListener('click', (event) => {
 });
 for (const answer of ANSWERS) el(answer).addEventListener('click', () => rate(answer));
 el('suspend-card').addEventListener('click', suspendCurrentCard);
-el('undo-card').addEventListener('click', undoAnswer);
 el('reset-progress').addEventListener('click', () => {
   if (!window.confirm('Reset all study progress in this browser?\n\nThis clears your card history and schedules. Your new-cards-per-day setting is kept. Export a backup first if you want to restore your progress later. This cannot be undone.')) return;
   try {
