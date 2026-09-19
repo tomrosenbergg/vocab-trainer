@@ -7,7 +7,7 @@ import { settingsMarkup } from './views/settings.ts';
 import { cardsMarkup, renderActivityView, renderCardsView, setupWordBrowser } from './views/stats.ts';
 import {
   createDeck, dailyAllowance, isBuried, isSuspended, remainingCardCounts,
-  nextCard, rateCard, readProgress, newProgress,
+  nextCard, nextLearningCardAt, rateCard, readProgress, newProgress,
   STORAGE_KEY, DAILY_NEW_CARDS, setNewCardsPerDay, setBothDirections, setWordSuspended,
   type Answer, type Progress, type StudyCard,
 } from './study.ts';
@@ -16,7 +16,7 @@ const ANSWERS = ['again', 'good'] as const satisfies readonly Answer[];
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
   <div class="shell">
-    <header><a class="brand" href="${import.meta.env.BASE_URL}" aria-label="Bird brain home"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 28 28" width="25" height="25" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18.5c0-5.1 3.2-9.3 8-9.3 4.6 0 7.8 3.5 7.8 7.4 0 4.2-3.1 7-7.8 7H9.5c-2 0-3.5-1.8-3.5-5.1Z" fill="currentColor" stroke="none"/><path d="M20.5 12.5 25 14.7l-4.1 2.2" fill="currentColor" stroke="none"/><circle cx="17" cy="12.8" r="1.1" fill="#17191b" stroke="none"/><path d="M10.2 18c1.7-1.8 4-2.1 6-.8" stroke="#17191b" stroke-width="1.4"/><path d="M11.5 23.2v2M16.5 23.2v2" stroke="currentColor" stroke-width="1.4"/></svg></span> bird brain</a><nav class="view-nav" aria-label="App views"><button class="settings-toggle quiet" id="open-practice" type="button" aria-label="Practice" aria-pressed="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="6" y="6" width="14" height="16" rx="2"/><path d="M16 6V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h2"/></svg></button><button class="settings-toggle quiet" id="open-stats" type="button" aria-label="Stats" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20V7"/></svg></button><button class="settings-toggle quiet" id="open-settings" type="button" aria-label="Settings" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 3-.5 2-2 1.2-2-.5-2 3.5 1.5 1.5v2.6L2.5 15l2 3.5 2-.5 2 1.2.5 2h4l.5-2 2-1.2 2 .5 2-3.5-1.5-1.7v-2.6L19.5 9l-2-3.5-2 .5-2-1.2-.5-2Z"/><circle cx="11" cy="12" r="3"/></svg></button></nav></header>
+    <header><div class="brand-group"><a class="brand" href="${import.meta.env.BASE_URL}" aria-label="Bird brain home"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 28 28" width="25" height="25" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18.5c0-5.1 3.2-9.3 8-9.3 4.6 0 7.8 3.5 7.8 7.4 0 4.2-3.1 7-7.8 7H9.5c-2 0-3.5-1.8-3.5-5.1Z" fill="currentColor" stroke="none"/><path d="M20.5 12.5 25 14.7l-4.1 2.2" fill="currentColor" stroke="none"/><circle cx="17" cy="12.8" r="1.1" fill="#17191b" stroke="none"/><path d="M10.2 18c1.7-1.8 4-2.1 6-.8" stroke="#17191b" stroke-width="1.4"/><path d="M11.5 23.2v2M16.5 23.2v2" stroke="currentColor" stroke-width="1.4"/></svg></span> bird brain</a><span class="deck-name">GRE 1000 words</span></div><nav class="view-nav" aria-label="App views"><button class="settings-toggle quiet" id="open-practice" type="button" aria-label="Practice" aria-pressed="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="6" y="6" width="14" height="16" rx="2"/><path d="M16 6V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h2"/></svg></button><button class="settings-toggle quiet" id="open-stats" type="button" aria-label="Stats" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20V7"/></svg></button><button class="settings-toggle quiet" id="open-settings" type="button" aria-label="Settings" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 3-.5 2-2 1.2-2-.5-2 3.5 1.5 1.5v2.6L2.5 15l2 3.5 2-.5 2 1.2.5 2h4l.5-2 2-1.2 2 .5 2-3.5-1.5-1.7v-2.6L19.5 9l-2-3.5-2 .5-2-1.2-.5-2Z"/><circle cx="11" cy="12" r="3"/></svg></button></nav></header>
     <main>
       ${practiceMarkup}
       ${cardsMarkup}
@@ -77,7 +77,6 @@ function render() {
   const undoButton = el<HTMLButtonElement>('undo-card');
   undoButton.disabled = failed || undoStack.length === 0;
   el<HTMLButtonElement>('suspend-card').disabled = failed || !current;
-  el<HTMLButtonElement>('report-card').disabled = !current;
   (document.querySelector('.study') as HTMLElement).hidden = !current;
   el('rest').hidden = Boolean(current);
   el('reveal-cue').hidden = !current || Object.keys(progress.cards).length >= 3;
@@ -86,13 +85,24 @@ function render() {
   el<HTMLInputElement>('both-directions').checked = progress.bothDirections === true;
   updateView();
   if (!current) {
-    const title = 'You’re done for today.';
+    const waitingUntil = nextLearningCardAt(deck, progress, now);
+    const waiting = waitingUntil !== null;
+    const title = waiting ? 'You’re caught up for now.' : 'You’re done for today.';
+    el('rest-mark').textContent = waiting ? '◷' : '✓';
     el('rest-title').textContent = title;
-    el('daily-summary').textContent = `${daily.introduced.length} new ${daily.introduced.length === 1 ? 'card' : 'cards'} practised today. All today’s reviews complete.`;
-    el('announcement').textContent = title;
+    el('daily-summary').textContent = waiting
+      ? `${remaining.learning} learning ${remaining.learning === 1 ? 'card returns' : 'cards return'} ${formatWait(waitingUntil, now)}.`
+      : `${daily.introduced.length} new ${daily.introduced.length === 1 ? 'card' : 'cards'} practised today. All today’s reviews complete.`;
+    el('rest-return').textContent = waiting ? 'Keep this tab open and it will appear automatically.' : 'Come back tomorrow.';
+    el('announcement').textContent = `${title} ${el('daily-summary').textContent}`;
     return;
   }
   showCurrentCard();
+}
+
+function formatWait(due: Date, now: Date): string {
+  const minutes = Math.ceil((due.getTime() - now.getTime()) / 60000);
+  return minutes <= 1 ? 'in less than a minute' : `in about ${minutes} minutes`;
 }
 
 function showCurrentCard() {
@@ -166,7 +176,6 @@ function undoAnswer() {
       showCurrentCard();
       reveal();
       el<HTMLButtonElement>('suspend-card').disabled = false;
-      el<HTMLButtonElement>('report-card').disabled = false;
     }
     el(current ? 'card' : 'rest-title').focus({ preventScroll: true });
   } catch (error) {
@@ -226,10 +235,6 @@ document.querySelector('main')!.addEventListener('click', (event) => {
 for (const answer of ANSWERS) el(answer).addEventListener('click', () => rate(answer));
 el('suspend-card').addEventListener('click', suspendCurrentCard);
 el('undo-card').addEventListener('click', undoAnswer);
-el('report-card').addEventListener('click', () => {
-  if (!current || failed) return;
-  el('announcement').textContent = 'Issue reporting is coming soon.';
-});
 el('reset-progress').addEventListener('click', () => {
   if (!window.confirm('Reset all study progress in this browser?\n\nThis clears your card history and schedules. Your new-cards-per-day setting is kept. Export a backup first if you want to restore your progress later. This cannot be undone.')) return;
   try {

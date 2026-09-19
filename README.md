@@ -1,6 +1,6 @@
 # Bird Brain
 
-A minimal, browser-only SAT vocabulary trainer. Click anywhere in the main study area to reveal the answer, then choose **Again** or **Good**. There is no login, backend, analytics, or external font request.
+A minimal, browser-only GRE vocabulary trainer. Click anywhere in the main study area to reveal the answer, then choose **Again** or **Good**. There is no login, backend, analytics, or external font request.
 
 ## Run locally
 
@@ -24,13 +24,13 @@ npm run preview
 New words follow a deterministic shuffle based on a seed saved in the browser. Resetting history creates a new seed.
 
 
-`cards.csv` is the source of truth: three columns, no header, word, definition, and example sentence, using standard CSV quoting. The supplied 991 rows produce 1,982 cards. Definitions and examples are imported as supplied; editorial accuracy and SAT relevance have not been independently reviewed.
+`cards.csv` is the source of truth for the **GRE 1000 words** deck: three columns, no header, word, definition, and example sentence, using standard CSV quoting. Every row produces two possible card directions. Definitions and examples are imported as supplied; editorial accuracy and GRE relevance should be reviewed before release.
 
 Each word has a word → definition card and a definition → word card, with independent FSRS scheduling. The default allowance is **10 new cards per study day (4 a.m. to 4 a.m.)**, not five word pairs. Each first-reviewed direction uses one place, even if the other direction was introduced on an earlier day. Due reviews remain uncapped and take priority over new cards.
 
 After reviewing a card, its sibling (the opposite direction of the same word) is buried until the next local 4 a.m.. This applies to new, learning, and due review siblings, survives reloads. The reviewed card can still repeat later today if FSRS schedules it. Burying is a queue filter based on the sibling’s last-review date: it never changes the buried card’s FSRS state or due date. When both directions are due, reviewing the first defers the other to another day.
 
-All reviews scheduled before the next 4 a.m. are available in today's session. Already-due cards come first, followed by today's future review cards, new cards, and future learning repeats in due-time order. Short learning steps can therefore be completed without waiting for the clock. Again may require more repetitions before the session finishes. FSRS receives the actual review time and retains its own due dates.
+All review-state cards scheduled before the next 4 a.m. are available in today's session. Already-due cards come first, followed by today's review cards and new cards. When nothing else is available, learning and relearning cards can appear up to 20 minutes early, matching Anki's default learn-ahead behavior. Equally eligible learning cards alternate instead of immediately repeating the same word; a card repeats at once only when it is the sole choice. Cards beyond the learn-ahead window show a short waiting state and appear automatically when eligible. FSRS receives the actual review time and retains its own due dates.
 
 Once today's work is complete, the app waits until 4 a.m. for the next allowance and reviews. Missed days do not accumulate allowance. The timezone comes from the device/browser, not IP geolocation. Calendar-based boundaries respect daylight saving time. An idle open tab refreshes within 15 seconds of rollover.
 
@@ -62,7 +62,7 @@ Invalid saved data is left untouched and reported. Storage failures disable grad
 
 The **Undo** icon or **Cmd/Ctrl+Z** reverses the last rating or practice suspension, restoring the previous card, schedule, daily allowance and sibling availability. Undo remains available after completing the queue. You can undo repeatedly through the current session. Reload, import, settings changes, browser suspension changes, or changes in another tab clear the undo stack. A final saved-state check prevents undo from overwriting newer progress.
 
-**Suspend** removes both directions of a word from practice without deleting its history. Resume words from the Cards browser context menu. **Report** is currently a placeholder.
+**Suspend** removes both directions of a word from practice without deleting its history. Suspend or resume the selected word from its Cards viewer, or use the browser context menu for multiple selections.
 
 **Settings (gear icon) → Export progress** downloads a JSON backup containing all saved schedules, daily allowance and shuffle seed. **Import progress** validates a backup before asking to replace this browser's history. It does not merge histories. Invalid files leave existing progress untouched. Export first if you want to keep the current history. Backups contain progress, not the vocabulary CSV; they also work between localhost and the published site or another device running the same deck.
 
@@ -99,7 +99,7 @@ Profiles are `consistent`, `casual`, `struggling`, `advanced`, and `lapsed`. Opt
 - `src/style.css`: responsive appearance
 - `src/study.test.ts`: import, recall, persistence, and scheduling checks
 
-The Settings view starts with a 12-week activity heat map, current streak, and review totals. The Cards view provides a scrollable word browser; select one or more rows to inspect a word and use the context menu to suspend or resume them. Activity begins when review-event recording was introduced; earlier card state is preserved but cannot be reconstructed into historical events.
+The Settings view starts with a one-year activity heat map, current streak, and review totals. The Cards view provides a scrollable, filterable word browser; select one or more rows to inspect a word and suspend or resume it from the viewer or context menu. Activity begins when review-event recording was introduced; earlier card state is preserved but cannot be reconstructed into historical events.
 
 The production build is static output in `dist/`.
 

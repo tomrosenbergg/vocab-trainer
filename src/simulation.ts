@@ -1,4 +1,4 @@
-import { createDeck, newProgress, nextCard, rateCard, type Progress, type StudyCard } from './study.ts';
+import { createDeck, newProgress, nextCard, nextLearningCardAt, rateCard, type Progress, type StudyCard } from './study.ts';
 
 export const SIMULATION_PROFILES = ['consistent', 'casual', 'struggling', 'advanced', 'lapsed'] as const;
 export type SimulationProfile = typeof SIMULATION_PROFILES[number];
@@ -84,13 +84,19 @@ export function simulateHistory(csv: string, options: SimulationOptions): Simula
     if (!shouldStudy(options.profile, dayIndex, options.days, random)) continue;
     studyDays++;
     let answersToday = 0;
+    let sessionTime = now;
     while (answersToday < 3000) {
-      const card = nextCard(deck, progress, now);
-      if (!card) break;
+      const card = nextCard(deck, progress, sessionTime);
+      if (!card) {
+        const waitingUntil = nextLearningCardAt(deck, progress, sessionTime);
+        if (!waitingUntil) break;
+        sessionTime = waitingUntil;
+        continue;
+      }
       const ability = abilities.get(card.word) ?? 0.5;
       const baseRate = profileSettings[options.profile].passRate;
       const passRate = Math.min(0.995, Math.max(0.05, baseRate + (ability - 0.5) * 0.34));
-      progress = rateCard(progress, card, random() <= passRate ? 'good' : 'again', now);
+      progress = rateCard(progress, card, random() <= passRate ? 'good' : 'again', sessionTime);
       answersToday++;
     }
     if (answersToday === 3000) throw new Error(`Simulation did not finish the queue on day ${dayIndex + 1}.`);

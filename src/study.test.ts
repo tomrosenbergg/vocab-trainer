@@ -4,7 +4,7 @@ import { simulateHistory } from './simulation.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { setNewCardsPerDay, setBothDirections, setWordSuspended, remainingCards, remainingCardCounts, createDeck, dailyAllowance, isBuried, localDay, newProgress, nextStudyDay, nextCard, parseProgress, rateCard, readProgress } from './study.ts';
+import { LEARN_AHEAD_MINUTES, setNewCardsPerDay, setBothDirections, setWordSuspended, remainingCards, remainingCardCounts, createDeck, dailyAllowance, isBuried, localDay, newProgress, nextStudyDay, nextCard, nextLearningCardAt, parseProgress, rateCard, readProgress } from './study.ts';
 
 const now = new Date(2026, 8, 14, 12);
 const tomorrow = new Date(2026, 8, 15, 4, 0);
@@ -21,11 +21,15 @@ function finishAvailable(progress = newProgress(now), deck = createDeck(csv, pro
 
 test('CSV creates stable independent directions, including quoted commas', () => {
   const deck = createDeck(csv, 42);
-  assert.equal(deck.length, 1982);
-  assert.equal(new Set(deck.map((card) => card.id)).size, 1982);
-  const forward = deck.find((card) => card.word === 'abase' && card.direction === 'meaning')!;
-  const reverse = deck.find((card) => card.word === 'abase' && card.direction === 'word')!;
-  assert.equal(forward.back, 'to humiliate or degrade someone');
+  const words = new Set(deck.map((card) => card.word.toLowerCase()));
+  assert.ok(words.size > 0);
+  assert.equal(deck.length, words.size * 2);
+  assert.equal(new Set(deck.map((card) => card.id)).size, deck.length);
+  for (const word of words) {
+    assert.deepEqual(deck.filter((card) => card.word.toLowerCase() === word).map((card) => card.direction).sort(), ['meaning', 'word']);
+  }
+  const forward = deck.find((card) => card.direction === 'meaning')!;
+  const reverse = deck.find((card) => card.word === forward.word && card.direction === 'word')!;
   assert.equal(forward.example, reverse.example);
   assert.ok(deck.every((card) => card.example.length > 0));
   assert.equal(reverse.front, forward.back);
@@ -54,6 +58,8 @@ test('reviewing either direction buries only its sibling until local 4am', () =>
     assert.equal(isBuried(sibling, progress, now), true);
     assert.equal(isBuried(reviewed, progress, now), false);
     assert.equal(nextCard(pair, progress, now)?.id, reviewed.id);
+    assert.equal(nextLearningCardAt(pair, progress, now)?.getTime(), Date.parse(progress.cards[reviewed.id].due));
+    assert.equal(nextCard(pair, progress, new Date(progress.cards[reviewed.id].due))?.id, reviewed.id);
     assert.throws(() => rateCard(progress, sibling, 'good', now), /sibling/);
     const loaded = parseProgress(JSON.stringify(progress), now);
     assert.equal(isBuried(sibling, loaded, now), true);
@@ -157,6 +163,7 @@ test('definition and sentence edits keep stable IDs and existing review history'
   assert.equal(progress.cards[updated[0].id].reps, 1);
   assert.equal(isBuried(updated[1], progress, now), true);
   assert.equal(nextCard(updated, progress, now)?.id, original[0].id);
+  assert.equal(nextCard(updated, progress, new Date(progress.cards[updated[0].id].due))?.id, original[0].id);
 });
 
 
@@ -185,11 +192,35 @@ test('4am boundary controls allowance, sibling burying and future reviews', () =
   assert.equal(nextCard(pair, progress, after)?.id, pair[0].id);
 });
 
-test('learning repeats can finish immediately, then the queue stays complete until 4am', () => {
+test('learning repeats use Anki-style learn ahead only after other cards are exhausted', () => {
   let progress = rateCard(newProgress(now), pair[0], 'good', now);
-  assert.ok(Date.parse(progress.cards[pair[0].id].due) > now.getTime());
+  const due = new Date(progress.cards[pair[0].id].due);
+  assert.ok(due.getTime() > now.getTime());
   assert.equal(nextCard(pair, progress, now)?.id, pair[0].id);
-  progress = rateCard(progress, pair[0], 'good', now);
+  assert.equal(nextLearningCardAt(pair, progress, now)?.getTime(), due.getTime());
+
+  const twoWords = createDeck([
+    'mitigate,make less severe,These measures mitigate the risk.',
+    'abate,become less intense,The storm began to abate.',
+  ].join('\n'), 1).filter((card) => card.direction === 'meaning');
+  const first = twoWords.find((card) => card.word === 'mitigate')!;
+  const other = twoWords.find((card) => card.word === 'abate')!;
+  let interleaved = rateCard(newProgress(now), first, 'again', now);
+  assert.equal(nextCard(twoWords, interleaved, now)?.id, other.id,
+    'a new card must be shown before an early learning repeat');
+  interleaved = rateCard(interleaved, other, 'again', now);
+  assert.equal(nextCard(twoWords, interleaved, now)?.id, first.id);
+  interleaved = rateCard(interleaved, first, 'again', now);
+  assert.equal(nextCard(twoWords, interleaved, now)?.id, other.id,
+    'equally eligible learning cards must alternate instead of looping');
+
+  progress.cards[pair[0].id].due = new Date(now.getTime() + (LEARN_AHEAD_MINUTES + 1) * 60_000).toISOString();
+  assert.equal(nextCard(pair, progress, now), null, 'cards outside the learn-ahead window must wait');
+  assert.equal(nextCard(pair, progress, new Date(now.getTime() + 60_000))?.id, pair[0].id,
+    'the card becomes eligible at the learn-ahead boundary');
+
+  progress.cards[pair[0].id].due = due.toISOString();
+  progress = rateCard(progress, pair[0], 'good', due);
   assert.equal(nextCard(pair, progress, now), null);
   assert.equal(nextCard(pair, parseProgress(JSON.stringify(progress)), new Date(2026, 8, 15, 3, 59)), null);
 });
@@ -279,7 +310,9 @@ test('direction toggle preserves schedules, history and sibling burying across r
   assert.deepEqual(disabled.daily, studied.daily);
   const reloaded = importBackup(exportBackup(disabled));
   assert.equal(reloaded.bothDirections, false);
-  assert.equal(nextCard(pair, setBothDirections(reloaded, true), now)?.id, pair[1].id);
+  const enabled = setBothDirections(reloaded, true);
+  assert.equal(nextCard(pair, enabled, now)?.id, pair[1].id);
+  assert.equal(nextCard(pair, enabled, new Date(studied.cards[pair[1].id].due))?.id, pair[1].id);
   const { bothDirections: _setting, ...legacy } = studied;
   assert.equal(parseProgress(JSON.stringify(legacy)).bothDirections, true);
   assert.throws(() => parseProgress(JSON.stringify({ ...studied, bothDirections: 'yes' })), /direction/);
@@ -291,6 +324,8 @@ test('due siblings count once and take precedence over unseen reverse cards', ()
   // Move to the next study day so the sibling is eligible again.
   progress.cards[pair[0].id].due = new Date(tomorrow.getTime() + 600000).toISOString();
   assert.equal(nextCard(pair, progress, tomorrow)?.id, pair[0].id);
+  assert.equal(nextLearningCardAt(pair, progress, tomorrow)?.getTime(), tomorrow.getTime() + 600000);
+  assert.equal(nextCard(pair, progress, new Date(tomorrow.getTime() + 600000))?.id, pair[0].id);
   assert.deepEqual(remainingCardCounts(pair, progress, tomorrow), { newCards: 0, reviews: 0, learning: 1 });
   progress.cards[pair[1].id] = { ...progress.cards[pair[0].id], state: 2, due: new Date(tomorrow.getTime() + 1200000).toISOString() };
   assert.deepEqual(remainingCardCounts(pair, progress, tomorrow), { newCards: 0, reviews: 0, learning: 1 });
@@ -343,7 +378,9 @@ test('daily limit changes apply now and persist without removing reviews', () =>
   assert.equal(dailyAllowance(lowered, tomorrow).limit, 5);
   assert.deepEqual(lowered.cards, finished.cards);
   const review = rateCard(initial, pair[0], 'again', now);
-  assert.equal(nextCard(pair, setNewCardsPerDay(review, 0), now)?.id, pair[0].id);
+  const paused = setNewCardsPerDay(review, 0);
+  assert.equal(nextCard(pair, paused, now)?.id, pair[0].id);
+  assert.equal(nextCard(pair, paused, new Date(review.cards[pair[0].id].due))?.id, pair[0].id);
   assert.equal(dailyAllowance(parseProgress(JSON.stringify(initial)), now).limit, 10);
   for (const invalid of [-1, 1.5, NaN]) assert.throws(() => setNewCardsPerDay(initial, invalid));
   assert.throws(() => parseProgress(JSON.stringify({ ...initial, newCardsPerDay: -1 })));

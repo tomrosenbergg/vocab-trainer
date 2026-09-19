@@ -35,6 +35,7 @@ export type Progress = {
 };
 export const STORAGE_KEY = 'vocab.progress.v1';
 export const DAILY_NEW_CARDS = 10;
+export const LEARN_AHEAD_MINUTES = 20;
 
 export const ANSWERS = ['again', 'hard', 'good', 'easy'] as const;
 export type Answer = typeof ANSWERS[number];
@@ -239,13 +240,29 @@ export function nextCard(deck: StudyCard[], progress: Progress, now: Date): Stud
   const eligible = deck.filter((card) => directionEnabled(card, progress) && !isSuspended(card, progress) && !isBuried(card, progress, now));
   const due = dueCards(eligible, progress, now);
   const ready = due.filter((card) => Date.parse(progress.cards[card.id].due) <= now.getTime());
-  if (ready.length) return ready[0];
+  if (ready.length) return ready.find((card) => card.word !== progress.lastWord) ?? ready[0];
   const review = due.find((card) => progress.cards[card.id].state === 2);
   if (review) return review;
   const daily = dailyAllowance(progress, now);
   const dueWords = new Set(due.map(wordKey));
   const unseen = daily.introduced.length < daily.limit ? eligible.filter((card) => !progress.cards[card.id] && !dueWords.has(wordKey(card))) : [];
-  return unseen.find((card) => card.word !== progress.lastWord) ?? unseen[0] ?? due[0] ?? null;
+  const nextUnseen = unseen.find((card) => card.word !== progress.lastWord) ?? unseen[0];
+  if (nextUnseen) return nextUnseen;
+
+  // Match Anki's default learn-ahead behavior: only pull a short learning step
+  // forward when there are no ready reviews or new cards left to study.
+  const learnAheadLimit = now.getTime() + LEARN_AHEAD_MINUTES * 60_000;
+  const learning = due.filter((card) => progress.cards[card.id].state !== 2 &&
+    Date.parse(progress.cards[card.id].due) <= learnAheadLimit);
+  return learning.find((card) => card.word !== progress.lastWord) ?? learning[0] ?? null;
+}
+
+export function nextLearningCardAt(deck: StudyCard[], progress: Progress, now: Date): Date | null {
+  const eligible = deck.filter((card) => directionEnabled(card, progress) && !isSuspended(card, progress) && !isBuried(card, progress, now));
+  const waiting = dueCards(eligible, progress, now)
+    .filter((card) => progress.cards[card.id].state !== 2 && Date.parse(progress.cards[card.id].due) > now.getTime())
+    .map((card) => Date.parse(progress.cards[card.id].due));
+  return waiting.length ? new Date(Math.min(...waiting)) : null;
 }
 
 export function rateCard(progress: Progress, card: StudyCard, answer: Answer, now: Date): Progress {

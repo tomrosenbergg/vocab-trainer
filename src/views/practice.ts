@@ -16,11 +16,10 @@ export const practiceMarkup = `
         </div>
       </div>
     </section>
-    <section class="rest" id="rest" hidden><span class="rest-mark" aria-hidden="true">✓</span><h1 id="rest-title" tabindex="-1">You’re done for today.</h1><p id="daily-summary"></p><p>Come back tomorrow.</p></section>
+    <section class="rest" id="rest" hidden><span class="rest-mark" id="rest-mark" aria-hidden="true">✓</span><h1 id="rest-title" tabindex="-1">You’re done for today.</h1><p id="daily-summary"></p><p id="rest-return">Come back tomorrow.</p></section>
     <div class="card-actions" aria-label="Card actions">
       <button class="card-action undo-card" id="undo-card" type="button" aria-label="Undo last action" data-tooltip="Undo">↶</button>
       <button class="card-action suspend-card" id="suspend-card" type="button" aria-label="Suspend card" data-tooltip="Suspend">×</button>
-      <button class="card-action report-card" id="report-card" type="button" aria-label="Report an issue" data-tooltip="Report">!</button>
     </div>
   </div>`;
 
