@@ -1,4 +1,5 @@
 import { exportBackup, importBackup, restoreAnswer, type Undo } from './backup.ts';
+import { inject } from '@vercel/analytics';
 import { el } from './dom.ts';
 import './style.css';
 import csv from '../cards.csv?raw';
@@ -11,6 +12,8 @@ import {
   STORAGE_KEY, DAILY_NEW_CARDS, setNewCardsPerDay, setBothDirections, setWordSuspended,
   type Answer, type Progress, type StudyCard,
 } from './study.ts';
+
+if (import.meta.env.PROD) inject();
 
 const ANSWERS = ['again', 'good'] as const satisfies readonly Answer[];
 const app = document.querySelector<HTMLDivElement>('#app')!;

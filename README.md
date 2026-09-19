@@ -1,6 +1,6 @@
 # Bird Brain
 
-A minimal, browser-only GRE vocabulary trainer. Click anywhere in the main study area to reveal the answer, then choose **Again** or **Good**. There is no login, backend, analytics, or external font request.
+A minimal, browser-only GRE vocabulary trainer. Click anywhere in the main study area to reveal the answer, then choose **Again** or **Good**. There is no login, application backend, or external font request. Study progress stays in the browser; anonymous traffic is measured with cookie-free Vercel Web Analytics.
 
 ## Run locally
 

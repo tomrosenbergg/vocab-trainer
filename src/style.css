@@ -111,6 +111,9 @@ main.can-reveal { cursor: pointer; }
 
 .about p { max-width: 700px; margin: 0 0 14px; }
 .about p:last-child { margin-bottom: 0; }
+.about .feedback { margin-top: 24px; }
+.about a { color: #b9bcb7; text-underline-offset: 4px; }
+.about a:hover { color: #e0e1de; }
 
 .activity-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 34px; }
 .activity-metrics > div { display: flex; flex-direction: column; gap: 7px; padding: 18px; border: 1px solid #343735; border-radius: 8px; }

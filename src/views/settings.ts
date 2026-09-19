@@ -32,5 +32,7 @@ export const settingsMarkup = `
       <p>Bird Brain is a minimalist vocabulary trainer built around active recall and spaced repetition.</p>
       <p>Try to recall each meaning before revealing it, then choose “Again” or “Good.” Your answers determine when each card returns: difficult words come back sooner, while familiar ones are spaced further apart.</p>
       <p>Consistency matters more than long sessions. Learn a small number of new cards each day and complete the reviews that return. Over time, repeated retrieval makes the vocabulary easier to recall.</p>
+      <p>Your study history stays in this browser. Bird Brain uses cookie-free, anonymous traffic analytics.</p>
+      <p class="feedback">Questions or feedback? <a href="mailto:hello@bird-brain.xyz">hello@bird-brain.xyz</a></p>
     </section>
   </section>`;
